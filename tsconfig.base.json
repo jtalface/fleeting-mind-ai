@@ -1,0 +1,59 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "strict": true,
+    "skipLibCheck": true,
+    "noUncheckedIndexedAccess": true,
+    "exactOptionalPropertyTypes": true,
+    "resolveJsonModule": true,
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "baseUrl": ".",
+    "paths": {
+      "@fleetmind/shared/*": [
+        "packages/shared/src/*"
+      ],
+      "@fleetmind/database/*": [
+        "packages/database/src/*"
+      ],
+      "@fleetmind/telemetry/*": [
+        "packages/telemetry/src/*"
+      ],
+      "@fleetmind/analytics/*": [
+        "packages/analytics/src/*"
+      ],
+      "@fleetmind/ai-core/*": [
+        "packages/ai-core/src/*"
+      ],
+      "@fleetmind/integrations": [
+        "packages/integrations/src/index.ts"
+      ],
+      "@fleetmind/integrations/*": [
+        "packages/integrations/src/*"
+      ],
+      "@fleetmind/database": [
+        "packages/database/src/index.ts"
+      ],
+      "@fleetmind/analytics": [
+        "packages/analytics/src/index.ts"
+      ],
+      "@fleetmind/shared": [
+        "packages/shared/src/index.ts"
+      ],
+      "@fleetmind/telemetry": [
+        "packages/telemetry/src/index.ts"
+      ],
+      "@fleetmind/ai-core": [
+        "packages/ai-core/src/index.ts"
+      ],
+      "@fleetmind/ui/*": [
+        "packages/ui/src/*"
+      ]
+    }
+  }
+}

@@ -1,0 +1,28 @@
+{
+  "name": "@fleetmind/worker",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/index.js",
+    "lint": "eslint src --ext .ts",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@fleetmind/analytics": "workspace:*",
+    "@fleetmind/database": "workspace:*",
+    "@fleetmind/integrations": "workspace:*",
+    "@fleetmind/shared": "workspace:*",
+    "@prisma/client": "^5.20.0",
+    "bullmq": "^5.20.0",
+    "ioredis": "^5.4.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.9.0",
+    "tsx": "^4.19.1",
+    "vitest": "^2.1.2"
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "baseUrl": ".",
+    "jsx": "react-jsx",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "types": ["vite/client"],
+    "declaration": false,
+    "declarationMap": false,
+    "noEmit": true,
+    "paths": {
+      "@fleetmind/shared": ["../../packages/shared/src/index.ts"],
+      "@fleetmind/shared/*": ["../../packages/shared/src/*"],
+      "@fleetmind/ui": ["../../packages/ui/src/index.ts"],
+      "@fleetmind/ui/*": ["../../packages/ui/src/*"]
+    }
+  },
+  "include": ["src", "vite.config.ts"]
+}

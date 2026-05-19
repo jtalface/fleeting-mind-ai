@@ -1,0 +1,14 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "baseUrl": ".",
+    "jsx": "react-jsx",
+    "outDir": "dist",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "paths": {
+      "@fleetmind/shared": ["../shared/src/index.ts"],
+      "@fleetmind/shared/*": ["../shared/src/*"]
+    }
+  },
+  "include": ["src"]
+}

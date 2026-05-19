@@ -1,0 +1,31 @@
+{
+  "name": "fleet-intelligence-ai",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Fleet Mind AI production-grade SaaS monorepo foundation",
+  "packageManager": "pnpm@9.12.2",
+  "scripts": {
+    "build": "pnpm -r --filter './apps/*' --filter './packages/*' build",
+    "dev": "pnpm --filter @fleetmind/web dev",
+    "dev:api": "dotenv -e .env -- pnpm --filter @fleetmind/api dev",
+    "dev:worker": "dotenv -e .env -- pnpm --filter @fleetmind/worker dev",
+    "dev:web": "dotenv -e .env -- pnpm --filter @fleetmind/web dev",
+    "dev:all": "dotenv -e .env -- concurrently -n api,worker,web -c blue,magenta,green \"pnpm dev:api\" \"pnpm dev:worker\" \"pnpm dev:web\"",
+    "dev:setup": "docker compose up -d && dotenv -e .env -- sh -c 'pnpm --filter @fleetmind/database prisma:generate && pnpm --filter @fleetmind/database prisma:migrate:deploy && pnpm --filter @fleetmind/database prisma:seed'",
+    "lint": "pnpm -r --filter './apps/*' --filter './packages/*' lint",
+    "test": "pnpm -r --filter './apps/*' --filter './packages/*' test",
+    "typecheck": "pnpm -r --filter './apps/*' --filter './packages/*' typecheck",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.0",
+    "dotenv-cli": "^7.4.2",
+    "@typescript-eslint/eslint-plugin": "^8.12.2",
+    "@typescript-eslint/parser": "^8.12.2",
+    "eslint": "^9.12.0",
+    "eslint-config-prettier": "^9.1.0",
+    "prettier": "^3.3.3",
+    "typescript": "^5.6.3"
+  }
+}

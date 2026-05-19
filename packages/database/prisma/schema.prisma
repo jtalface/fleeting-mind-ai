@@ -1,0 +1,237 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Vehicle {
+  id                String              @id @default(cuid())
+  tenantId          String
+  externalId        String?
+  vin               String
+  plateNumber       String?
+  class             VehicleClass
+  make              String?
+  model             String?
+  year              Int?
+  odometerKm        Float?
+  active            Boolean             @default(true)
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+  telemetryPoints   TelemetryPoint[]
+  trips             Trip[]
+  fuelReadings      FuelReading[]
+  maintenance       MaintenanceRecord[]
+
+  @@unique([tenantId, vin])
+  @@unique([tenantId, externalId])
+  @@index([tenantId, createdAt])
+}
+
+model IntegrationSyncState {
+  id           String   @id @default(cuid())
+  tenantId     String
+  connector    String
+  cursor       String?
+  lastSyncedAt DateTime?
+  lastStatus   String?
+  lastError    String?
+  updatedAt    DateTime @updatedAt
+
+  @@unique([tenantId, connector])
+  @@index([tenantId, updatedAt])
+}
+
+model TelemetryPoint {
+  id             String          @id @default(cuid())
+  tenantId       String
+  vehicleId      String
+  timestamp      DateTime
+  latitude       Float
+  longitude      Float
+  speedKph       Float?
+  headingDegrees Float?
+  engineRpm      Int?
+  ignitionOn     Boolean?
+  fuelLevelPct   Float?
+  odometerKm     Float?
+  engineHours    Float?
+  source         TelemetrySource
+  createdAt      DateTime        @default(now())
+  vehicle        Vehicle         @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, vehicleId, timestamp])
+  @@index([tenantId, timestamp])
+}
+
+model Trip {
+  id              String    @id @default(cuid())
+  tenantId        String
+  vehicleId       String
+  driverId        String?
+  startTime       DateTime
+  endTime         DateTime
+  startOdometerKm Float
+  endOdometerKm   Float
+  distanceKm      Float
+  idleMinutes     Float
+  averageSpeedKph Float
+  geofenceStartId String?
+  geofenceEndId   String?
+  createdAt       DateTime  @default(now())
+  vehicle         Vehicle   @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, startTime])
+  @@index([tenantId, vehicleId, startTime])
+}
+
+model FuelReading {
+  id           String     @id @default(cuid())
+  tenantId     String
+  vehicleId    String
+  timestamp    DateTime
+  volumeLiters Float
+  totalCost    Float
+  currency     String
+  stationName  String?
+  source       FuelSource
+  createdAt    DateTime   @default(now())
+  vehicle      Vehicle    @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, timestamp])
+}
+
+model MaintenanceRecord {
+  id          String            @id @default(cuid())
+  tenantId    String
+  vehicleId   String
+  type        MaintenanceType
+  status      MaintenanceStatus
+  occurredAt  DateTime?
+  dueAt       DateTime?
+  odometerKm  Float?
+  engineHours Float?
+  laborCost   Float?
+  partsCost   Float?
+  totalCost   Float?
+  notes       String?
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+  vehicle     Vehicle           @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, status, dueAt])
+}
+
+model Insight {
+  id          String          @id @default(cuid())
+  tenantId    String
+  entityType  InsightEntityType
+  entityId    String
+  severity    InsightSeverity
+  title       String
+  description String
+  recommendation String
+  confidence  Float
+  createdAt   DateTime        @default(now())
+  metrics     InsightMetric[]
+
+  @@index([tenantId, createdAt])
+}
+
+model InsightMetric {
+  id         String     @id @default(cuid())
+  insightId  String
+  metricKey  String
+  value      Float
+  unit       MetricUnit
+  timeframe  String
+  asOf       DateTime
+  insight    Insight    @relation(fields: [insightId], references: [id], onDelete: Cascade)
+}
+
+model Conversation {
+  id        String               @id @default(cuid())
+  tenantId  String
+  subject   String?
+  createdAt DateTime             @default(now())
+  updatedAt DateTime             @updatedAt
+  messages  ConversationMessage[]
+
+  @@index([tenantId, updatedAt])
+}
+
+model ConversationMessage {
+  id             String               @id @default(cuid())
+  conversationId String
+  tenantId       String
+  role           ConversationRole
+  content        String
+  createdAt      DateTime             @default(now())
+  conversation   Conversation         @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, conversationId, createdAt])
+}
+
+enum VehicleClass {
+  truck
+  van
+  car
+  heavy_equipment
+  other
+}
+
+enum TelemetrySource {
+  device
+  partner_api
+  manual
+}
+
+enum FuelSource {
+  telematics
+  fuel_card
+  manual
+}
+
+enum MaintenanceType {
+  preventive
+  repair
+  inspection
+}
+
+enum MaintenanceStatus {
+  scheduled
+  in_progress
+  completed
+  canceled
+}
+
+enum InsightEntityType {
+  fleet
+  vehicle
+  route
+  driver
+}
+
+enum InsightSeverity {
+  info
+  warning
+  critical
+}
+
+enum MetricUnit {
+  currency
+  percent
+  ratio
+  distance
+  duration
+  count
+}
+
+enum ConversationRole {
+  user
+  assistant
+  system
+}

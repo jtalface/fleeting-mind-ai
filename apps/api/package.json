@@ -1,0 +1,32 @@
+{
+  "name": "@fleetmind/api",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/index.js",
+    "lint": "eslint src --ext .ts",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@fleetmind/ai-core": "workspace:*",
+    "@fleetmind/analytics": "workspace:*",
+    "@fleetmind/database": "workspace:*",
+    "@fleetmind/integrations": "workspace:*",
+    "@fleetmind/shared": "workspace:*",
+    "@fleetmind/telemetry": "workspace:*",
+    "dotenv": "^16.4.5",
+    "express": "^4.21.0",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/express": "^4.17.21",
+    "@types/supertest": "^6.0.3",
+    "supertest": "^7.1.1",
+    "tsx": "^4.19.1",
+    "vitest": "^2.1.2"
+  }
+}
