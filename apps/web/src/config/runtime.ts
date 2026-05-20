@@ -8,7 +8,7 @@ function readEnv(key: string): string | undefined {
 export function getWebRuntimeConfig(): ApiClientConfig {
   return {
     baseUrl: readEnv("VITE_API_BASE_URL") ?? "",
-    tenantId: readEnv("VITE_TENANT_ID") ?? "tenant_local",
+    tenantId: readEnv("VITE_TENANT_ID") ?? "tenant_demo",
     userId: readEnv("VITE_USER_ID") ?? "user_local",
     fetchImpl: fetch
   };

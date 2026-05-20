@@ -3,6 +3,7 @@ import { InMemoryConversationMemory } from "../../../packages/ai-core/src/memory
 import { ToolRegistry } from "../../../packages/ai-core/src/tool-registry.js";
 import { persistInsights } from "../../../packages/analytics/src/persist-insights.js";
 import { DefaultAnalyticsService } from "../../../packages/analytics/src/service.js";
+import { computeVehicleGroupMetrics } from "../../../packages/analytics/src/vehicle-group-metrics.js";
 import { buildDailyHistoryFromRepositories } from "../../../packages/analytics/src/history.js";
 import type { Insight } from "../../../packages/shared/src/contracts/domain.js";
 import { createInMemoryTenantRepositories } from "../../../packages/database/src/repositories/in-memory.js";
@@ -284,6 +285,34 @@ export class ApiRuntime {
           idleCount,
           vehicles: snapshots
         }
+      };
+    });
+
+    this.registry.register("get_vehicle_group_metrics", async (request) => {
+      const nameIncludes =
+        typeof request.input === "object" &&
+        request.input &&
+        "nameIncludes" in request.input &&
+        typeof (request.input as { nameIncludes?: unknown }).nameIncludes === "string"
+          ? String((request.input as { nameIncludes: string }).nameIncludes)
+          : "Sweeper";
+
+      const runtime = this.forTenant(request.context.tenantId);
+      const window = defaultWindow();
+      const data = await computeVehicleGroupMetrics({
+        tenantId: request.context.tenantId,
+        repositories: runtime.repositories,
+        asOf: request.context.now,
+        window,
+        nameIncludes
+      });
+
+      return {
+        toolName: "get_vehicle_group_metrics",
+        ok: true,
+        observedAt: request.context.now,
+        citations: ["analytics:vehicle_group", `filter:${nameIncludes}`],
+        data
       };
     });
 

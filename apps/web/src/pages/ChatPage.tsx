@@ -15,6 +15,9 @@ function formatAssistantMessage(response: CopilotResponse): string {
     text += response.citedFacts.map((c: CopilotResponse["citedFacts"][number]) => `• ${c.claim} (${c.toolName}: ${c.citation})`).join("\n");
   }
   text += `\n\nConfidence: ${(response.confidence * 100).toFixed(0)}%`;
+  if (response.narrator) {
+    text += `\nNarrator: ${response.narrator}`;
+  }
   if (response.needsFollowUp) {
     text += "\nFollow-up suggested.";
   }

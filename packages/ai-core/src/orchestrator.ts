@@ -8,6 +8,10 @@ import type {
 import type { Insight } from "@fleetmind/shared/contracts/domain.js";
 import type { ConversationMemory } from "./memory.js";
 import { buildGroundingPayload, enforceGroundedResponse } from "./grounding.js";
+import {
+  inferNameFilterFromContext,
+  questionAsksForPlateNumbers
+} from "./question-filters.js";
 import type { ToolRegistry } from "./tool-registry.js";
 
 export interface ExecutionPlanStep {
@@ -35,9 +39,19 @@ export interface OrchestratorDependencies {
 export class AgentOrchestrator {
   constructor(private readonly deps: OrchestratorDependencies) {}
 
-  public createPlan(question: string): ExecutionPlan {
+  public createPlan(question: string, history: string[] = []): ExecutionPlan {
     const normalized = question.toLowerCase();
     const steps: ExecutionPlanStep[] = [];
+    const nameFilter = inferNameFilterFromContext(question, history);
+    const asksPlates = questionAsksForPlateNumbers(question);
+
+    if (nameFilter) {
+      steps.push({
+        toolName: "get_vehicle_group_metrics",
+        reason: `Question targets vehicles matching "${nameFilter}".`,
+        input: { nameIncludes: nameFilter }
+      });
+    }
 
     if (includesAny(normalized, ["profit", "margin", "revenue", "cost"])) {
       steps.push({
@@ -46,7 +60,7 @@ export class AgentOrchestrator {
         input: {}
       });
     }
-    if (includesAny(normalized, ["utilization", "idle", "efficiency"])) {
+    if (includesAny(normalized, ["utilization", "idle", "efficiency"]) && !nameFilter) {
       steps.push({
         toolName: "get_operational_efficiency",
         reason: "Question asks for efficiency-related metrics.",
@@ -74,7 +88,19 @@ export class AgentOrchestrator {
         input: {}
       });
     }
-    if (includesAny(normalized, ["sweeper", "vehicle", "fleet", "truck", "device"])) {
+    if (asksPlates && !nameFilter) {
+      steps.push({
+        toolName: "get_vehicle_snapshot",
+        reason: "Question asks for vehicle plate numbers.",
+        input: {}
+      });
+    }
+
+    if (
+      !nameFilter &&
+      !asksPlates &&
+      includesAny(normalized, ["vehicle", "fleet", "truck", "device"])
+    ) {
       steps.push({
         toolName: "get_vehicle_snapshot",
         reason: "Question asks about fleet or vehicle state.",
@@ -103,7 +129,7 @@ export class AgentOrchestrator {
   public async runTurn(request: OrchestratorRequest, insights: Insight[] = []): Promise<CopilotResponse> {
     const historyTurns = await this.deps.memory.getRecent(request.context.tenantId, request.conversationId);
     const history = historyTurns.map((turn) => `${turn.role}: ${turn.content}`);
-    const plan = this.createPlan(request.question);
+    const plan = this.createPlan(request.question, history);
     const toolResults = await this.executePlan(plan, request.context);
     const groundingPayload = buildGroundingPayload(request.question, toolResults, insights);
     const rawResponse = await this.deps.responder(groundingPayload, history);

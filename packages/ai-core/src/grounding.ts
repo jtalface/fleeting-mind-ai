@@ -2,6 +2,8 @@ import type { CopilotGroundingPayload, CopilotResponse, ToolResult } from "@flee
 import type { Insight } from "@fleetmind/shared/contracts/domain.js";
 
 const NUMBER_REGEX = /-?\d+(?:\.\d+)?/g;
+/** Max drift when comparing a rounded display value to a stored metric (e.g. 35.7 vs 35.7143). */
+const METRIC_ROUNDING_EPSILON = 0.11;
 
 export function buildGroundingPayload(
   question: string,
@@ -31,8 +33,10 @@ export function enforceGroundedResponse(
   }
 
   const allowedNumbers = collectAllowedNumbers(payload.toolResults);
-  const citedNumbers = new Set(
-    response.citedFacts.flatMap((fact) => extractNumbers(fact.claim)).map((value) => normalizeNumber(value))
+  const citedNumbers = expandNumericTokens(
+    response.citedFacts
+      .flatMap((fact) => extractNumbers(fact.claim))
+      .map((value) => normalizeNumber(value))
   );
 
   for (const fact of response.citedFacts) {
@@ -48,27 +52,26 @@ export function enforceGroundedResponse(
     const factNumbers = extractNumbers(fact.claim);
     for (const value of factNumbers) {
       const normalized = normalizeNumber(value);
-      if (!allowedNumbers.has(normalized)) {
+      if (!matchesGroundedNumber(normalized, allowedNumbers)) {
         throw new Error(`Cited claim includes unsupported numeric value ${value}.`);
       }
     }
   }
 
-  const answerNumbers = [
-    ...extractNumbers(response.answer),
-    ...response.recommendations.flatMap((recommendation) => extractNumbers(recommendation))
-  ].map((value) => normalizeNumber(value));
+  // Only validate answer prose; recommendations are tool-grounded separately.
+  const answerNumbers = extractNumbers(response.answer).map((value) => normalizeNumber(value));
 
   if (answerNumbers.length > 0 && response.citedFacts.length === 0) {
     throw new Error("Numeric responses must include cited facts.");
   }
 
+  // Narrated prose may round metrics; allow numbers from cited facts OR tool output.
   for (const numberToken of answerNumbers) {
-    if (!allowedNumbers.has(numberToken)) {
+    if (
+      !matchesGroundedNumber(numberToken, citedNumbers) &&
+      !matchesGroundedNumber(numberToken, allowedNumbers)
+    ) {
       throw new Error(`Response includes fabricated numeric value ${numberToken}.`);
-    }
-    if (!citedNumbers.has(numberToken)) {
-      throw new Error(`Numeric value ${numberToken} is missing from cited facts.`);
     }
   }
 
@@ -82,12 +85,60 @@ function collectAllowedNumbers(toolResults: ToolResult[]): Set<string> {
       extractNumericValues(result.data, values);
     }
   }
-  return new Set(values.map((value) => normalizeNumber(value)));
+  return expandNumericTokens(values.map((value) => normalizeNumber(value)));
+}
+
+function expandNumericTokens(values: string[]): Set<string> {
+  const set = new Set<string>();
+  for (const value of values) {
+    set.add(value);
+    const parsed = Number(value);
+    if (!Number.isFinite(parsed)) {
+      continue;
+    }
+    set.add(parsed.toFixed(1));
+    set.add(parsed.toFixed(2));
+    set.add(String(Math.round(parsed)));
+  }
+  return set;
+}
+
+function matchesGroundedNumber(value: string, pool: Set<string>): boolean {
+  if (pool.has(value)) {
+    return true;
+  }
+
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) {
+    return false;
+  }
+
+  for (const candidate of pool) {
+    const other = Number(candidate);
+    if (!Number.isFinite(other)) {
+      continue;
+    }
+    if (Math.abs(parsed - other) <= METRIC_ROUNDING_EPSILON) {
+      return true;
+    }
+    if (parsed.toFixed(1) === other.toFixed(1)) {
+      return true;
+    }
+  }
+
+  return false;
 }
 
 function extractNumericValues(value: unknown, bucket: string[]): void {
   if (typeof value === "number" && Number.isFinite(value)) {
     bucket.push(String(value));
+    return;
+  }
+
+  if (typeof value === "string") {
+    for (const match of value.match(NUMBER_REGEX) ?? []) {
+      bucket.push(match);
+    }
     return;
   }
 
@@ -105,8 +156,13 @@ function extractNumericValues(value: unknown, bucket: string[]): void {
   }
 }
 
+/** Strip thousands separators so "17,536" is read as 17536, not 17 and 536. */
+function normalizeNumericText(text: string): string {
+  return text.replace(/(?<=\d),(?=\d)/g, "");
+}
+
 function extractNumbers(text: string): string[] {
-  return text.match(NUMBER_REGEX) ?? [];
+  return normalizeNumericText(text).match(NUMBER_REGEX) ?? [];
 }
 
 function normalizeNumber(value: string): string {

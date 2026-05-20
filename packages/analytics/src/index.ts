@@ -10,3 +10,4 @@ export * from "./forecast.js";
 export * from "./insights.js";
 export * from "./kpi.js";
 export * from "./service.js";
+export * from "./vehicle-group-metrics.js";

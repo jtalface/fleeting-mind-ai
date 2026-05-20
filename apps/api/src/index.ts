@@ -9,6 +9,7 @@ const app = createApp({ runtime });
 
 app.listen(port, () => {
   console.log(`API listening on port ${port} (storage: ${process.env.API_STORAGE ?? "prisma"})`);
+  console.info("[api] Chat grounding: cited∪tools validation + narrator fallback v4");
 });
 
 const shutdown = async (signal: string) => {

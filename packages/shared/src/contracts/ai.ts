@@ -7,6 +7,7 @@ export type ToolName =
   | "get_forecast"
   | "list_open_maintenance"
   | "list_recent_insights"
+  | "get_vehicle_group_metrics"
   | "get_integration_status";
 
 export interface ToolContext {
@@ -92,6 +93,8 @@ export interface CopilotResponse {
   }>;
   confidence: number;
   needsFollowUp: boolean;
+  /** How the answer text was produced. */
+  narrator?: "openai" | "deterministic";
 }
 
 export interface AnalyticsOutput {

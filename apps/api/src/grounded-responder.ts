@@ -1,3 +1,4 @@
+import { questionAsksForPlateNumbers } from "../../../packages/ai-core/src/question-filters.js";
 import type { CopilotGroundingPayload, CopilotResponse, ToolResult } from "../../../packages/shared/src/contracts/ai.js";
 import type { DeterministicForecast, KpiSnapshot } from "../../../packages/shared/src/contracts/analytics.js";
 
@@ -31,6 +32,20 @@ function firstCitation(result: ToolResult): string {
     throw new Error(`Tool ${result.toolName} returned no citations.`);
   }
   return citation;
+}
+
+function asMetricNumber(value: unknown): number {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return value;
+  }
+  if (typeof value === "string" && value.trim() !== "" && Number.isFinite(Number(value))) {
+    return Number(value);
+  }
+  return 0;
+}
+
+function formatPct(value: unknown): string {
+  return asMetricNumber(value).toFixed(1);
 }
 
 /**
@@ -141,6 +156,79 @@ export function buildDeterministicGroundedResponse(payload: CopilotGroundingPayl
         recommendations.push("Schedule preventive work before utilization ramps if items remain open.");
         break;
       }
+      case "get_vehicle_group_metrics": {
+        if (!isRecord(result.data)) {
+          break;
+        }
+        const matchedCount = asMetricNumber(result.data.matchedCount);
+        const nameIncludes =
+          typeof result.data.nameIncludes === "string" ? result.data.nameIncludes : "vehicles";
+        const matchedStr = String(matchedCount);
+        const idleStr = formatPct(result.data.groupAvgIdleRatioPct);
+        const utilStr = formatPct(result.data.groupAvgUtilizationPct);
+
+        const vehicles = Array.isArray(result.data.vehicles) ? result.data.vehicles : [];
+        const asksPlates = questionAsksForPlateNumbers(payload.question);
+
+        if (!asksPlates) {
+          const summary = `Vehicles matching "${nameIncludes}": ${matchedStr} units. Group average idle ratio is ${idleStr}% and utilization is ${utilStr}% (trip-based, analysis window).`;
+          answerParts.push(summary);
+          citedFacts.push({
+            claim: summary,
+            toolName: "get_vehicle_group_metrics",
+            citation: firstCitation(result)
+          });
+        }
+
+        if (asksPlates) {
+          const plateLines: string[] = [];
+          for (const row of vehicles) {
+            if (!isRecord(row) || typeof row.label !== "string") {
+              continue;
+            }
+            plateLines.push(row.label);
+            citedFacts.push({
+              claim: `Plate number: ${row.label}.`,
+              toolName: "get_vehicle_group_metrics",
+              citation: firstCitation(result)
+            });
+          }
+          if (plateLines.length > 0) {
+            const plateAnswer = `Plate numbers (${nameIncludes} group, ${matchedStr} units): ${plateLines.join(", ")}.`;
+            answerParts.push(plateAnswer);
+            citedFacts.push({
+              claim: plateAnswer,
+              toolName: "get_vehicle_group_metrics",
+              citation: firstCitation(result)
+            });
+          }
+        }
+
+        for (const row of vehicles.slice(0, 5)) {
+          if (!isRecord(row) || typeof row.label !== "string") {
+            continue;
+          }
+          if (asksPlates) {
+            continue;
+          }
+          const idleStr = formatPct(row.idleRatioPct);
+          const trips = asMetricNumber(row.tripCount);
+          const line = `${row.label}: idle ratio ${idleStr}% across ${String(trips)} trip(s).`;
+          answerParts.push(line);
+          citedFacts.push({
+            claim: line,
+            toolName: "get_vehicle_group_metrics",
+            citation: firstCitation(result)
+          });
+        }
+
+        if (!asksPlates) {
+          recommendations.push(
+            `Compare high-idle units in the "${nameIncludes}" group and validate dispatch for those plates.`
+          );
+        }
+        break;
+      }
       case "get_vehicle_snapshot": {
         if (!isRecord(result.data)) {
           break;
@@ -151,14 +239,40 @@ export function buildDeterministicGroundedResponse(payload: CopilotGroundingPayl
         const countStr = String(vehicleCount);
         const movingStr = String(movingCount);
         const idleStr = String(idleCount);
-        const sentence = `Fleet snapshot: ${countStr} vehicles tracked (${movingStr} moving, ${idleStr} idle in the sample).`;
-        answerParts.push(sentence);
-        citedFacts.push({
-          claim: sentence,
-          toolName: "get_vehicle_snapshot",
-          citation: firstCitation(result)
-        });
-        recommendations.push("Ask about a specific plate number or sweeper for deeper trip and idle analysis.");
+        const vehicles = Array.isArray(result.data.vehicles) ? result.data.vehicles : [];
+        const asksPlates = questionAsksForPlateNumbers(payload.question);
+        const plateNumbers = vehicles
+          .map((row) => (isRecord(row) && typeof row.plateNumber === "string" ? row.plateNumber : null))
+          .filter((value): value is string => Boolean(value));
+
+        if (asksPlates && plateNumbers.length > 0) {
+          const plateAnswer = `Plate numbers (${countStr} vehicles in sample): ${plateNumbers.join(", ")}.`;
+          answerParts.push(plateAnswer);
+          citedFacts.push({
+            claim: plateAnswer,
+            toolName: "get_vehicle_snapshot",
+            citation: firstCitation(result)
+          });
+          for (const plate of plateNumbers.slice(0, 15)) {
+            citedFacts.push({
+              claim: `Plate number: ${plate}.`,
+              toolName: "get_vehicle_snapshot",
+              citation: firstCitation(result)
+            });
+          }
+        } else {
+          const sentence = `Fleet snapshot: ${countStr} vehicles tracked (${movingStr} moving, ${idleStr} idle in the sample).`;
+          answerParts.push(sentence);
+          citedFacts.push({
+            claim: sentence,
+            toolName: "get_vehicle_snapshot",
+            citation: firstCitation(result)
+          });
+        }
+
+        if (!asksPlates) {
+          recommendations.push("Ask about a specific plate number or sweeper for deeper trip and idle analysis.");
+        }
         break;
       }
       case "list_recent_insights": {
@@ -224,6 +338,7 @@ export function buildDeterministicGroundedResponse(payload: CopilotGroundingPayl
     recommendations,
     citedFacts,
     confidence: 0.86,
-    needsFollowUp: payload.toolResults.length > 3
+    needsFollowUp: payload.toolResults.length > 3,
+    narrator: "deterministic"
   };
 }
