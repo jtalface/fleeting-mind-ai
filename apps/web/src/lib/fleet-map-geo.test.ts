@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { outlierCount, positionsForMapBounds, spreadOverlappingMarkers } from "./fleet-map-geo.js";
+import {
+  clusterFleetLocationsForZoom,
+  clusterSharesExactGps,
+  collapsedClusterCount,
+  outlierCount,
+  positionsForMapBounds,
+  vehiclesInCollapsedClusters
+} from "./fleet-map-geo.js";
 
 describe("positionsForMapBounds", () => {
   it("excludes a single distant outlier from auto-zoom", () => {
@@ -15,27 +22,43 @@ describe("positionsForMapBounds", () => {
     expect(bounds.every((p) => p[0] > 0)).toBe(true);
     expect(outlierCount([...arizona, saoPaulo])).toBe(1);
   });
-
-  it("keeps all positions when fleet is geographically cohesive", () => {
-    const positions: [number, number][] = [
-      [32.7, -114.62],
-      [32.71, -114.63],
-      [32.69, -114.61]
-    ];
-    expect(positionsForMapBounds(positions)).toHaveLength(3);
-    expect(outlierCount(positions)).toBe(0);
-  });
 });
 
-describe("spreadOverlappingMarkers", () => {
-  it("offsets vehicles that share identical coordinates", () => {
-    const spread = spreadOverlappingMarkers([
+describe("clusterFleetLocationsForZoom", () => {
+  const nearby = [
+    { vehicleId: "a", plateNumber: "A", latitude: 32.703, longitude: -114.621 },
+    { vehicleId: "b", plateNumber: "B", latitude: 32.7031, longitude: -114.6211 },
+    { vehicleId: "c", plateNumber: "C", latitude: 32.7032, longitude: -114.6212 }
+  ];
+
+  it("groups nearby vehicles when zoomed out", () => {
+    const clusters = clusterFleetLocationsForZoom(nearby, 11, 32.703);
+
+    expect(collapsedClusterCount(clusters)).toBeGreaterThan(0);
+    expect(vehiclesInCollapsedClusters(clusters)).toBe(3);
+  });
+
+  it("separates vehicles that are far enough apart at high zoom", () => {
+    const separated = [
+      { vehicleId: "a", latitude: 32.703, longitude: -114.621 },
+      { vehicleId: "b", latitude: 32.705, longitude: -114.621 },
+      { vehicleId: "c", latitude: 32.703, longitude: -114.618 }
+    ];
+    const clusters = clusterFleetLocationsForZoom(separated, 15, 32.703);
+
+    expect(clusters).toHaveLength(3);
+    expect(clusters.every((cluster) => !cluster.collapsed)).toBe(true);
+  });
+
+  it("detects when grouped vehicles share the exact same GPS fix", () => {
+    const sameFix = [
       { vehicleId: "a", latitude: 1, longitude: 2 },
       { vehicleId: "b", latitude: 1, longitude: 2 }
-    ]);
+    ];
 
-    expect(spread).toHaveLength(2);
-    expect(spread[0]!.displayLatitude).toBe(spread[1]!.displayLatitude);
-    expect(spread[0]!.displayLongitude).not.toBe(spread[1]!.displayLongitude);
+    expect(clusterSharesExactGps(sameFix)).toBe(true);
+
+    const clusters = clusterFleetLocationsForZoom(sameFix, 15, 1);
+    expect(clusters[0]!.sameGpsFix).toBe(true);
   });
 });

@@ -10,8 +10,18 @@ vi.mock("react-leaflet", () => ({
   },
   TileLayer: () => null,
   CircleMarker: () => null,
+  Marker: () => null,
+  Tooltip: ({ children }: { children: unknown }) => <>{children as never}</>,
   Popup: ({ children }: { children: unknown }) => <>{children as never}</>,
-  useMap: () => ({ setView: vi.fn(), fitBounds: vi.fn() })
+  useMap: () => ({
+    setView: vi.fn(),
+    fitBounds: vi.fn(),
+    invalidateSize: vi.fn(),
+    getZoom: () => 12,
+    getCenter: () => ({ lat: 40.7, lng: -74 }),
+    on: vi.fn(),
+    off: vi.fn()
+  })
 }));
 
 describe("App navigation", () => {

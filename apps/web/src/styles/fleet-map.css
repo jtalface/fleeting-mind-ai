@@ -1,0 +1,127 @@
+/* Grouped vehicles — large stacked marker with count badge */
+.fleet-cluster-marker.leaflet-div-icon {
+  background: transparent;
+  border: none;
+}
+
+.fleet-cluster-marker__stack {
+  position: relative;
+  width: 60px;
+  height: 60px;
+}
+
+.fleet-cluster-marker__halo {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 52px;
+  height: 52px;
+  transform: translate(-50%, -55%);
+  border-radius: 50%;
+  background: rgba(15, 23, 42, 0.14);
+  border: 3px solid #0f172a;
+  box-sizing: border-box;
+  z-index: 0;
+}
+
+.fleet-cluster-marker__layer {
+  position: absolute;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 3px solid #ffffff;
+  box-shadow: 0 2px 6px rgba(15, 23, 42, 0.35);
+  pointer-events: none;
+  z-index: 1;
+}
+
+.fleet-cluster-marker__layer--1 {
+  z-index: 1;
+}
+
+.fleet-cluster-marker__layer--2 {
+  z-index: 2;
+}
+
+.fleet-cluster-marker__layer--3 {
+  z-index: 3;
+}
+
+.fleet-cluster-marker__badge {
+  position: absolute;
+  right: 2px;
+  bottom: 4px;
+  min-width: 26px;
+  height: 26px;
+  padding: 0 7px;
+  border-radius: 13px;
+  border: 3px solid #ffffff;
+  background: #0f172a;
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 800;
+  line-height: 20px;
+  text-align: center;
+  box-shadow: 0 3px 8px rgba(15, 23, 42, 0.45);
+  z-index: 5;
+}
+
+/* Single vehicle — small dot, clearly different from groups */
+.fleet-single-marker.leaflet-div-icon {
+  background: transparent;
+  border: none;
+}
+
+.fleet-single-marker__pin {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--pin-color, #f59e0b);
+  border: 2px solid #ffffff;
+  box-shadow: 0 1px 4px rgba(15, 23, 42, 0.35);
+  box-sizing: border-box;
+}
+
+/* Leaflet defaults to nowrap — override so grouped-vehicle text can wrap comfortably */
+.leaflet-tooltip.fleet-map-tooltip {
+  min-width: 280px;
+  max-width: 360px;
+  white-space: normal;
+  text-align: center;
+  line-height: 1.45;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 8px 14px;
+  border-radius: 6px;
+}
+
+.fleet-map-popup__collapsed-title {
+  margin: 0 0 8px;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.fleet-map-popup__collapsed-hint {
+  margin: 0 0 8px;
+  font-size: 12px;
+  color: #64748b;
+}
+
+.fleet-map-popup__collapsed-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  max-height: 220px;
+  overflow-y: auto;
+}
+
+.fleet-map-popup__collapsed-list li {
+  padding: 6px 0;
+  border-top: 1px solid rgba(15, 23, 42, 0.08);
+  font-size: 12px;
+}
+
+.fleet-map-popup__collapsed-list li:first-child {
+  border-top: none;
+  padding-top: 0;
+}

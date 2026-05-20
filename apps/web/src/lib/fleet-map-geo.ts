@@ -1,7 +1,7 @@
 /** Earth radius in meters (WGS84 mean). */
 const EARTH_RADIUS_M = 6_371_000;
 
-export type LatLng = readonly [latitude: number, longitude: number];
+export type LatLng = [latitude: number, longitude: number];
 
 export function haversineMeters(a: LatLng, b: LatLng): number {
   const [lat1, lng1] = a;
@@ -43,23 +43,76 @@ export function positionsForMapBounds(positions: LatLng[]): LatLng[] {
   return inCluster.length >= 2 ? inCluster : positions;
 }
 
-export interface SpreadMarkerInput {
+export function outlierCount(positions: LatLng[]): number {
+  return positions.length - positionsForMapBounds(positions).length;
+}
+
+export interface FleetLocationInput {
   vehicleId: string;
   latitude: number;
   longitude: number;
+  plateNumber?: string;
 }
 
-export interface SpreadMarkerOutput extends SpreadMarkerInput {
-  displayLatitude: number;
-  displayLongitude: number;
+export interface FleetLocationCluster<T extends FleetLocationInput> {
+  clusterKey: string;
+  latitude: number;
+  longitude: number;
+  vehicles: T[];
+  /** Multiple vehicles rendered as one map marker (grouped). */
+  collapsed: boolean;
+  /** All vehicles in the group share the exact same GPS fix. */
+  sameGpsFix: boolean;
 }
 
-/** Nudge markers that share the same GPS fix so stacked units remain clickable. */
-export function spreadOverlappingMarkers<T extends SpreadMarkerInput>(vehicles: T[]): Array<T & SpreadMarkerOutput> {
+function locationClusterKey(latitude: number, longitude: number): string {
+  return `${latitude.toFixed(5)}:${longitude.toFixed(5)}`;
+}
+
+function sortVehicles<T extends FleetLocationInput>(vehicles: T[]): T[] {
+  return [...vehicles].sort((a, b) =>
+    (a.plateNumber ?? a.vehicleId).localeCompare(b.plateNumber ?? b.vehicleId)
+  );
+}
+
+export function clusterSharesExactGps<T extends FleetLocationInput>(vehicles: T[]): boolean {
+  if (vehicles.length <= 1) {
+    return false;
+  }
+  const anchor = locationClusterKey(vehicles[0]!.latitude, vehicles[0]!.longitude);
+  return vehicles.every(
+    (vehicle) => locationClusterKey(vehicle.latitude, vehicle.longitude) === anchor
+  );
+}
+
+/** Meters per pixel at a given zoom level and latitude (Web Mercator). */
+export function metersPerPixel(zoom: number, latitude: number): number {
+  return (156_543.033_92 * Math.cos((latitude * Math.PI) / 180)) / Math.pow(2, zoom);
+}
+
+/**
+ * Group vehicles that overlap on screen at the current zoom (pixel clustering).
+ * Nearby vehicles collapse into one stacked marker; zoom in to split groups apart.
+ */
+export function clusterFleetLocationsForZoom<T extends FleetLocationInput>(
+  vehicles: T[],
+  zoom: number,
+  latitude: number,
+  clusterPixelRadius = 52
+): FleetLocationCluster<T>[] {
+  if (vehicles.length === 0) {
+    return [];
+  }
+
+  const cellSizeDegrees =
+    (clusterPixelRadius * metersPerPixel(zoom, latitude)) / 111_320;
+  const safeCellSize = Math.max(cellSizeDegrees, 1e-8);
   const groups = new Map<string, T[]>();
 
   for (const vehicle of vehicles) {
-    const key = `${vehicle.latitude.toFixed(5)}:${vehicle.longitude.toFixed(5)}`;
+    const cellLat = Math.round(vehicle.latitude / safeCellSize);
+    const cellLng = Math.round(vehicle.longitude / safeCellSize);
+    const key = `${cellLat}:${cellLng}`;
     const group = groups.get(key);
     if (group) {
       group.push(vehicle);
@@ -68,40 +121,39 @@ export function spreadOverlappingMarkers<T extends SpreadMarkerInput>(vehicles: 
     }
   }
 
-  const spread: Array<T & SpreadMarkerOutput> = [];
+  return Array.from(groups.entries())
+    .map(([gridKey, group]) => {
+      const sorted = sortVehicles(group);
+      const latitudeSum = sorted.reduce((sum, vehicle) => sum + vehicle.latitude, 0);
+      const longitudeSum = sorted.reduce((sum, vehicle) => sum + vehicle.longitude, 0);
+      const count = sorted.length;
 
-  for (const group of groups.values()) {
-    if (group.length === 1) {
-      const only = group[0]!;
-      spread.push({
-        ...only,
-        displayLatitude: only.latitude,
-        displayLongitude: only.longitude
-      });
-      continue;
-    }
-
-    const baseLat = group[0]!.latitude;
-    const baseLng = group[0]!.longitude;
-    const metersPerDegLat = 111_320;
-    const metersPerDegLng = Math.max(Math.cos((baseLat * Math.PI) / 180) * 111_320, 1);
-    const radiusMeters = 18;
-
-    group.forEach((vehicle, index) => {
-      const angle = (2 * Math.PI * index) / group.length;
-      const dLat = (radiusMeters * Math.sin(angle)) / metersPerDegLat;
-      const dLng = (radiusMeters * Math.cos(angle)) / metersPerDegLng;
-      spread.push({
-        ...vehicle,
-        displayLatitude: baseLat + dLat,
-        displayLongitude: baseLng + dLng
-      });
-    });
-  }
-
-  return spread;
+      return {
+        clusterKey: `${gridKey}@${zoom}`,
+        latitude: latitudeSum / count,
+        longitude: longitudeSum / count,
+        vehicles: sorted,
+        collapsed: count > 1,
+        sameGpsFix: clusterSharesExactGps(sorted)
+      };
+    })
+    .sort((a, b) =>
+      (a.vehicles[0]?.plateNumber ?? a.clusterKey).localeCompare(
+        b.vehicles[0]?.plateNumber ?? b.clusterKey
+      )
+    );
 }
 
-export function outlierCount(positions: LatLng[]): number {
-  return positions.length - positionsForMapBounds(positions).length;
+export function collapsedClusterCount<T extends FleetLocationInput>(
+  clusters: FleetLocationCluster<T>[]
+): number {
+  return clusters.filter((cluster) => cluster.collapsed).length;
+}
+
+export function vehiclesInCollapsedClusters<T extends FleetLocationInput>(
+  clusters: FleetLocationCluster<T>[]
+): number {
+  return clusters
+    .filter((cluster) => cluster.collapsed)
+    .reduce((sum, cluster) => sum + cluster.vehicles.length, 0);
 }
