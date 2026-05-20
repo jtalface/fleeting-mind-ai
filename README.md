@@ -15,6 +15,7 @@ Monorepo foundation for a production-grade SaaS platform that ingests telemetry,
 | API | http://localhost:4000/health |
 | Chat | http://localhost:5173/chat |
 | Insights | http://localhost:5173/insights |
+| Map | http://localhost:5173/map |
 
 ### First Flespi sync (after `dev:all` is running)
 

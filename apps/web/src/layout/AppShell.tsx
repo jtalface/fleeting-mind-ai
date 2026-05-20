@@ -30,7 +30,7 @@ export function AppShell(): JSX.Element {
       >
         <div
           style={{
-            maxWidth: "1120px",
+            maxWidth: "1280px",
             margin: "0 auto",
             display: "flex",
             alignItems: "center",
@@ -45,6 +45,9 @@ export function AppShell(): JSX.Element {
             </NavLink>
             <NavLink to="/insights" style={linkStyle}>
               Insights
+            </NavLink>
+            <NavLink to="/map" style={linkStyle}>
+              Map
             </NavLink>
           </nav>
         </div>

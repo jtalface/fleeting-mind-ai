@@ -4,12 +4,14 @@ import { persistInsights } from "../../../packages/analytics/src/persist-insight
 import type {
   ApiAnalyticsQueryResponse,
   ApiChatResponse,
+  ApiFleetLocationsResponse,
   ApiInsightsListResponse,
   ApiIntegrationPreviewResponse,
   ApiIntegrationStatusResponse,
   ApiIntegrationSyncResponse,
   ApiTelemetryIngestResponse
 } from "../../../packages/shared/src/contracts/api.js";
+import { listFleetVehicleLocations } from "../../../packages/telemetry/src/fleet-locations.js";
 import type { TelemetryIngestPointInput, VehicleTimelineQueryInput } from "../../../packages/shared/src/contracts/telemetry.js";
 import { ApiError } from "./errors.js";
 import { analyticsWindowForLookbackDays, type ApiRuntime } from "./runtime.js";
@@ -63,6 +65,15 @@ export function buildRoutes(runtime: ApiRuntime): Router {
         point: toTelemetryIngestPointInput(body.point)
       });
       res.status(200).json({ data: result } satisfies ApiTelemetryIngestResponse);
+    })().catch(next);
+  });
+
+  router.get("/v1/fleet/locations", (req, res, next) => {
+    (async () => {
+      const request = asRequestWithContext(req);
+      const tenantRuntime = runtime.forTenant(request.context.tenantId);
+      const locations = await listFleetVehicleLocations(tenantRuntime.repositories);
+      res.status(200).json({ data: locations } satisfies ApiFleetLocationsResponse);
     })().catch(next);
   });
 

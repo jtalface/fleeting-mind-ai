@@ -3,7 +3,8 @@ import type {
   ApiAnalyticsQueryResponse,
   ApiChatRequest,
   ApiChatResponse,
-  ApiErrorEnvelope
+  ApiErrorEnvelope,
+  ApiFleetLocationsResponse
 } from "@fleetmind/shared";
 
 export interface ApiClientConfig {
@@ -54,6 +55,31 @@ export async function postAnalyticsQuery(
   });
 
   const payload = await parseJson<ApiAnalyticsQueryResponse | ApiErrorEnvelope>(res);
+
+  if (!res.ok || "error" in payload) {
+    const err = "error" in payload ? payload.error : { code: "UNKNOWN", message: res.statusText, requestId: "" };
+    throw new ApiClientError(err.message, {
+      code: err.code,
+      requestId: err.requestId,
+      status: res.status,
+      details: "details" in err ? err.details : undefined
+    });
+  }
+
+  return payload.data;
+}
+
+export async function getFleetLocations(
+  cfg: ApiClientConfig
+): Promise<ApiFleetLocationsResponse["data"]> {
+  const fetchFn = cfg.fetchImpl ?? fetch;
+  const url = `${cfg.baseUrl.replace(/\/$/, "")}/v1/fleet/locations`;
+  const res = await fetchFn(url, {
+    method: "GET",
+    headers: buildHeaders(cfg)
+  });
+
+  const payload = await parseJson<ApiFleetLocationsResponse | ApiErrorEnvelope>(res);
 
   if (!res.ok || "error" in payload) {
     const err = "error" in payload ? payload.error : { code: "UNKNOWN", message: res.statusText, requestId: "" };

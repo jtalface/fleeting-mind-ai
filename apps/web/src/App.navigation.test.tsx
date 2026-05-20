@@ -1,10 +1,45 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { App } from "./App.js";
 
+vi.mock("react-leaflet", () => ({
+  MapContainer: ({ children }: { children: unknown }) => {
+    const Wrapper = "div" as const;
+    return <Wrapper data-testid="map">{children as never}</Wrapper>;
+  },
+  TileLayer: () => null,
+  CircleMarker: () => null,
+  Popup: ({ children }: { children: unknown }) => <>{children as never}</>,
+  useMap: () => ({ setView: vi.fn(), fitBounds: vi.fn() })
+}));
+
 describe("App navigation", () => {
-  it("switches between chat and insights from the shell nav", async () => {
+  beforeEach(() => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockImplementation((url: string) => {
+        if (String(url).includes("/v1/fleet/locations")) {
+          return Promise.resolve({
+            ok: true,
+            json: async () => ({ data: { vehicleCount: 0, locatedCount: 0, vehicles: [] } })
+          });
+        }
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({
+            data: {
+              kpis: { tenantId: "tenant_test", fleetMetrics: [], vehicleMetrics: [] },
+              forecasts: [],
+              insights: []
+            }
+          })
+        });
+      })
+    );
+  });
+
+  it("switches between chat, insights, and map from the shell nav", async () => {
     render(
       <MemoryRouter initialEntries={["/chat"]}>
         <App />
@@ -16,6 +51,10 @@ describe("App navigation", () => {
     fireEvent.click(screen.getByRole("link", { name: /^insights$/i }));
 
     expect(await screen.findByRole("heading", { name: /fleet insights/i })).toBeTruthy();
+
+    fireEvent.click(screen.getByRole("link", { name: /^map$/i }));
+
+    expect(await screen.findByRole("heading", { name: /fleet map/i })).toBeTruthy();
 
     fireEvent.click(screen.getByRole("link", { name: /^chat$/i }));
 

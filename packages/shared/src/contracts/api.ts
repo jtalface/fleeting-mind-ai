@@ -34,6 +34,25 @@ export interface ApiInsightsListResponse {
   data: AnalyticsReport["insights"];
 }
 
+export interface FleetVehicleLocationDto {
+  vehicleId: string;
+  plateNumber?: string;
+  externalId?: string;
+  latitude: number;
+  longitude: number;
+  timestamp: string;
+  speedKph?: number;
+  status: "moving" | "idle" | "offline";
+}
+
+export interface ApiFleetLocationsResponse {
+  data: {
+    vehicleCount: number;
+    locatedCount: number;
+    vehicles: FleetVehicleLocationDto[];
+  };
+}
+
 export interface ApiIntegrationStatusResponse {
   data: {
     configured: boolean;

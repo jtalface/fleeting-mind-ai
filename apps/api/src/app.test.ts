@@ -73,6 +73,30 @@ describe("api endpoints", () => {
     );
   });
 
+  it("returns latest fleet vehicle locations", async () => {
+    const app = createTestApp();
+    const vehicle = await memoryRuntime.forTenant("tenant_integration").repositories.vehicles.create({
+      vin: "VIN-LOC-1",
+      plateNumber: "Unit 101",
+      class: "truck",
+      active: true
+    });
+    await memoryRuntime.forTenant("tenant_integration").repositories.telemetry.create({
+      vehicleId: vehicle.id,
+      timestamp: "2026-05-07T12:00:00.000Z",
+      latitude: 40.7128,
+      longitude: -74.006,
+      source: "partner_api",
+      speedKph: 12
+    });
+
+    const response = await request(app).get("/v1/fleet/locations").set(authHeaders).expect(200);
+
+    expect(response.body.data.locatedCount).toBe(1);
+    expect(response.body.data.vehicles[0]?.plateNumber).toBe("Unit 101");
+    expect(response.body.data.vehicles[0]?.status).toBe("moving");
+  });
+
   it("returns error envelope for missing auth context", async () => {
     const app = createTestApp();
     const response = await request(app)

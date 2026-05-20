@@ -8,3 +8,4 @@ export * from "./validation.js";
 export * from "./trip-builder.js";
 export * from "./ingest-service.js";
 export * from "./timeline-service.js";
+export * from "./fleet-locations.js";
