@@ -3,7 +3,9 @@ import { Card, FleetMetricBars, ForecastBandChart, InsightCard, KpiStat, PageHea
 import { useMemo } from "react";
 import type { ApiClientConfig } from "../api/client.js";
 import { FinanceMetricsCallout } from "../components/FinanceMetricsCallout.js";
+import { MartQualityBanner } from "../components/MartQualityBanner.js";
 import { useAnalyticsReport } from "../hooks/useAnalyticsReport.js";
+import { useMartQuality } from "../hooks/useMartQuality.js";
 
 function rollingWeekWindow(): { start: string; end: string } {
   const end = new Date();
@@ -19,6 +21,7 @@ export interface InsightsPageProps {
 export function InsightsPage({ cfg }: InsightsPageProps): JSX.Element {
   const { start, end } = useMemo(() => rollingWeekWindow(), []);
   const { report, loading, error, refresh } = useAnalyticsReport(cfg, start, end, 7);
+  const martQuality = useMartQuality(cfg);
 
   const fleetMetrics = report?.kpis.fleetMetrics ?? [];
 
@@ -54,6 +57,11 @@ export function InsightsPage({ cfg }: InsightsPageProps): JSX.Element {
       ) : null}
 
       <FinanceMetricsCallout />
+      <MartQualityBanner
+        report={martQuality.report}
+        loading={martQuality.loading}
+        error={martQuality.error}
+      />
 
       <section style={{ marginBottom: "var(--fm-space-5)" }}>
         <h2 style={{ fontSize: "1rem", margin: "0 0 var(--fm-space-3)", color: "var(--fm-color-text-muted)" }}>Fleet KPIs</h2>

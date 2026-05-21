@@ -88,3 +88,22 @@ export interface AnalyticsReport {
   insights: Insight[];
   forecasts: DeterministicForecast[];
 }
+
+/** Quality signals for the daily fleet mart (`FleetMetricDaily`) over a lookback window. */
+export interface MartQualityReport {
+  tenantId: TenantId;
+  lookbackDays: number;
+  window: { start: TimestampIso; end: TimestampIso };
+  vehicleCount: number;
+  vehiclesWithMartRows: number;
+  vehiclesWithZeroDistance: number;
+  calendarDaysInWindow: number;
+  daysWithTripActivity: number;
+  coveragePct: number;
+  maxGapDays: number;
+  historyDaysAvailable: number;
+  minHistoryDaysRequired: number;
+  minCoveragePctRequired: number;
+  warnings: string[];
+  ok: boolean;
+}

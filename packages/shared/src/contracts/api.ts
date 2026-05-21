@@ -1,5 +1,5 @@
 import type { BillingContractListResult, CreateBillingContractInput, TenantBillingContract } from "./billing-contracts.js";
-import type { AnalyticsReport } from "./analytics.js";
+import type { AnalyticsReport, MartQualityReport } from "./analytics.js";
 import type { IntegrationSyncResult } from "./integrations.js";
 import type { CopilotResponse } from "./ai.js";
 import type {
@@ -26,6 +26,10 @@ export interface ApiAnalyticsQueryRequest {
 
 export interface ApiAnalyticsQueryResponse {
   data: AnalyticsReport;
+}
+
+export interface ApiMartQualityResponse {
+  data: MartQualityReport;
 }
 
 export interface ApiChatRequest {

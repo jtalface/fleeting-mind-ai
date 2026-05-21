@@ -17,6 +17,10 @@ export const telemetryIngestBodySchema = z.object({
   })
 });
 
+export const martQualityQuerySchema = z.object({
+  lookbackDays: z.coerce.number().int().min(7).max(90).optional()
+});
+
 export const analyticsQueryBodySchema = z.object({
   window: z.object({
     start: z.string().datetime(),

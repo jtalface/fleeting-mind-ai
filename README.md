@@ -92,8 +92,13 @@ WORKER_FORECAST_TOP_VEHICLES=5
 curl -X POST http://localhost:4000/v1/predictions/refresh \
   -H "x-tenant-id: tenant_demo" -H "x-user-id: user_local" \
   -H "Content-Type: application/json" \
-  -d '{"horizonDays":7,"lookbackDays":7,"topVehicles":5,"segmentScopes":[{"scopeKey":"Sweeper","nameIncludes":"Sweeper"}]}'
+  -d '{"horizonDays":7,"topVehicles":5,"segmentScopes":[{"scopeKey":"Sweeper","nameIncludes":"Sweeper"}]}'
 ```
+
+**Phase 4a — data trust (partial)**
+
+- Forecast training defaults to **30d** lookback (`FORECAST_TRAINING_LOOKBACK_DAYS`); hot KPIs stay **7d** (`ANALYTICS_HOT_LOOKBACK_DAYS`).
+- `GET /v1/analytics/mart-quality` — coverage, gaps, active days; Insights/Predictions show a warning banner when quality is low.
 
 ### Prune pre-LLM insights (optional)
 

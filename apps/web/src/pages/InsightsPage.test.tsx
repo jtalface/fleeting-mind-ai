@@ -7,7 +7,33 @@ describe("InsightsPage", () => {
   it("loads analytics KPIs from the API", async () => {
     const asOf = "2026-05-07T12:00:00.000Z";
 
-    const fetchImpl = vi.fn().mockResolvedValue({
+    const martQuality = {
+      tenantId: "tenant_test",
+      lookbackDays: 30,
+      window: { start: "2026-05-01T00:00:00.000Z", end: asOf },
+      vehicleCount: 1,
+      vehiclesWithMartRows: 1,
+      vehiclesWithZeroDistance: 0,
+      calendarDaysInWindow: 7,
+      daysWithTripActivity: 7,
+      coveragePct: 100,
+      maxGapDays: 0,
+      historyDaysAvailable: 7,
+      minHistoryDaysRequired: 14,
+      minCoveragePctRequired: 50,
+      warnings: [],
+      ok: true
+    };
+
+    const fetchImpl = vi.fn().mockImplementation((url: string) => {
+      if (String(url).includes("/v1/analytics/mart-quality")) {
+        return Promise.resolve({
+          ok: true,
+          status: 200,
+          json: async () => ({ data: martQuality })
+        });
+      }
+      return Promise.resolve({
       ok: true,
       status: 200,
       json: async () => ({
@@ -37,6 +63,7 @@ describe("InsightsPage", () => {
           forecasts: []
         }
       })
+    });
     });
 
     render(

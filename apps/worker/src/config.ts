@@ -6,8 +6,10 @@ export interface WorkerEnv {
   schedulerEnabled: boolean;
   /** Comma-separated tenant IDs for repeatable enqueue (optional). */
   scheduledTenantIds: string[];
-  /** Rolling UTC window for scheduled analytics + forecast jobs (matches API default). */
+  /** Rolling UTC window for scheduled batch analytics / hot KPIs (default 7d). */
   scheduledLookbackDays: number;
+  /** Rolling UTC window for scheduled forecast refresh / mart training (default 30d). */
+  forecastTrainingLookbackDays: number;
   scheduledForecastHorizonDays: number;
   cronBatchAnalytics: string;
   cronForecastRefresh: string;
@@ -36,6 +38,10 @@ export function loadWorkerEnv(env: NodeJS.ProcessEnv = process.env): WorkerEnv {
     schedulerEnabled: env.WORKER_SCHEDULER_ENABLED === "1" || env.WORKER_SCHEDULER_ENABLED === "true",
     scheduledTenantIds: splitCsv(env.WORKER_SCHEDULED_TENANT_IDS),
     scheduledLookbackDays: Math.min(90, Math.max(1, Number(env.WORKER_SCHEDULED_LOOKBACK_DAYS ?? "7") || 7)),
+    forecastTrainingLookbackDays: Math.min(
+      90,
+      Math.max(7, Number(env.WORKER_FORECAST_TRAINING_LOOKBACK_DAYS ?? "30") || 30)
+    ),
     scheduledForecastHorizonDays: Math.min(
       365,
       Math.max(1, Number(env.WORKER_SCHEDULED_FORECAST_HORIZON_DAYS ?? "7") || 7)

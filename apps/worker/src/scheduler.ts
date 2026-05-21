@@ -1,11 +1,29 @@
 import type { Queue } from "bullmq";
 import type { WorkerEnv } from "./config.js";
 import type { FleetMindQueues } from "./queues.js";
+import {
+  forecastWindowPresetForLookbackDays,
+  resolveAnalyticsHotLookbackDays
+} from "@fleetmind/analytics/forecast-lookback.js";
+
+const windowPayloadForLookback = (lookbackDays: number, asOf: string) => {
+  const preset = forecastWindowPresetForLookbackDays(lookbackDays);
+  if (preset === "explicit") {
+    const end = new Date(asOf);
+    const start = new Date(end.getTime() - lookbackDays * 24 * 60 * 60 * 1000);
+    return {
+      windowPreset: "explicit" as const,
+      windowStart: start.toISOString(),
+      windowEnd: end.toISOString()
+    };
+  }
+  return { windowPreset: preset };
+};
 
 /**
  * Registers BullMQ repeatable jobs per configured tenant.
  * Pipeline order (default cron): integration sync → batch analytics → forecast refresh.
- * Analytics/forecast use rolling 7d UTC windows when WORKER_SCHEDULED_LOOKBACK_DAYS=7.
+ * Batch analytics uses hot lookback (default 7d); forecast refresh uses training lookback (default 30d).
  * Requires WORKER_SCHEDULER_ENABLED and WORKER_SCHEDULED_TENANT_IDS.
  */
 export async function registerScheduledJobs(queues: FleetMindQueues, env: WorkerEnv): Promise<() => Promise<void>> {
@@ -13,21 +31,14 @@ export async function registerScheduledJobs(queues: FleetMindQueues, env: Worker
     return async () => {};
   }
 
-  const windowPreset = env.scheduledLookbackDays === 7 ? "last_7d_utc" : "explicit";
-  const windowPayload =
-    windowPreset === "last_7d_utc"
-      ? { windowPreset: "last_7d_utc" as const }
-      : (() => {
-          const end = new Date();
-          const start = new Date(end.getTime() - env.scheduledLookbackDays * 24 * 60 * 60 * 1000);
-          return {
-            windowPreset: "explicit" as const,
-            windowStart: start.toISOString(),
-            windowEnd: end.toISOString()
-          };
-        })();
+  const analyticsLookback = resolveAnalyticsHotLookbackDays(env.scheduledLookbackDays);
+  const forecastLookback = env.forecastTrainingLookbackDays;
 
   for (const tenantId of env.scheduledTenantIds) {
+    const asOf = new Date().toISOString();
+    const analyticsWindow = windowPayloadForLookback(analyticsLookback, asOf);
+    const forecastWindow = windowPayloadForLookback(forecastLookback, asOf);
+
     await queues.integrationSync.add(
       "scheduled-integration-sync",
       {
@@ -44,8 +55,8 @@ export async function registerScheduledJobs(queues: FleetMindQueues, env: Worker
       "scheduled-batch-analytics",
       {
         tenantId,
-        ...windowPayload,
-        asOf: new Date().toISOString()
+        ...analyticsWindow,
+        asOf
       },
       {
         repeat: { pattern: env.cronBatchAnalytics },
@@ -57,8 +68,8 @@ export async function registerScheduledJobs(queues: FleetMindQueues, env: Worker
       "scheduled-forecast-refresh",
       {
         tenantId,
-        ...windowPayload,
-        asOf: new Date().toISOString(),
+        ...forecastWindow,
+        asOf,
         horizonDays: env.scheduledForecastHorizonDays,
         topVehicles: env.scheduledForecastTopVehicles
       },

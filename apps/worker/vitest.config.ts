@@ -15,6 +15,7 @@ const alias: Record<string, string> = {
   "@fleetmind/analytics/persist-predictions.js": path.join(root, "packages/analytics/src/persist-predictions.ts"),
   "@fleetmind/analytics/run-batch-predictions.js": path.join(root, "packages/analytics/src/run-batch-predictions.ts"),
   "@fleetmind/analytics/prediction-config.js": path.join(root, "packages/analytics/src/prediction-config.ts"),
+  "@fleetmind/analytics/forecast-lookback.js": path.join(root, "packages/analytics/src/forecast-lookback.ts"),
   "@fleetmind/analytics/forward-accuracy.js": path.join(root, "packages/analytics/src/forward-accuracy.ts"),
   "@fleetmind/integrations": path.join(root, "packages/integrations/src/index.ts"),
   "@fleetmind/integrations/": path.join(root, "packages/integrations/src/"),

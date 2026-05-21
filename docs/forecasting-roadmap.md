@@ -63,8 +63,8 @@ The champion engine (`packages/analytics/src/forecast/champion-engine.ts`) train
 
 | Item | Description | Primary touchpoints |
 |------|-------------|---------------------|
-| 4a.1.1 | Extend default training lookback to 30d (configurable 7–90d) for refresh and worker | `apps/worker/src/config.ts`, `refresh-predictions.ts`, `.env.example`, `README.md` |
-| 4a.1.2 | Keep 7d “hot” refresh for ops; document when to use deep backfill + long lookback | `WORKER_DEEP_BACKFILL_*`, scheduler |
+| 4a.1.1 | Extend default training lookback to 30d (configurable 7–90d) for refresh and worker | **Done** — `forecast-lookback.ts`, worker scheduler split, API refresh default |
+| 4a.1.2 | Keep 7d “hot” refresh for ops; document when to use deep backfill + long lookback | **Done** — `ANALYTICS_HOT_LOOKBACK_DAYS` / `WORKER_SCHEDULED_LOOKBACK_DAYS`; deep backfill unchanged |
 
 ### 4a.2 Frozen actuals for evaluation
 
@@ -77,8 +77,8 @@ The champion engine (`packages/analytics/src/forecast/champion-engine.ts`) train
 
 | Item | Description | Primary touchpoints |
 |------|-------------|---------------------|
-| 4a.3.1 | Mart QA metrics: % days with trips, gap days, vehicles with zero distance, duplicate trip flags | New `packages/analytics/src/mart-quality.ts`, API `GET /v1/analytics/mart-quality` |
-| 4a.3.2 | Surface QA on Predictions / Insights (banner when history &lt; N days or coverage &lt; threshold) | `apps/web/src/pages/PredictionsPage.tsx` |
+| 4a.3.1 | Mart QA metrics: % days with trips, gap days, vehicles with zero distance, duplicate trip flags | **Done** — `mart-quality.ts`, `GET /v1/analytics/mart-quality` |
+| 4a.3.2 | Surface QA on Predictions / Insights (banner when history &lt; N days or coverage &lt; threshold) | **Done** — `MartQualityBanner` on Insights + Predictions |
 
 ### 4a.4 Finance reconciliation
 

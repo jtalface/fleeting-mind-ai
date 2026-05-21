@@ -9,6 +9,8 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import type { ApiClientConfig } from "../api/client.js";
 import { ApiClientError, postPredictionsRefresh } from "../api/client.js";
 import { FinanceMetricsCallout } from "../components/FinanceMetricsCallout.js";
+import { MartQualityBanner } from "../components/MartQualityBanner.js";
+import { useMartQuality } from "../hooks/useMartQuality.js";
 import { usePredictions } from "../hooks/usePredictions.js";
 import { usePredictionsEvaluations } from "../hooks/usePredictionsEvaluations.js";
 import {
@@ -53,6 +55,7 @@ export function PredictionsPage({ cfg }: PredictionsPageProps): JSX.Element {
   const [scopeType, setScopeType] = useState<"fleet" | "segment" | "vehicle" | "all">("all");
   const [horizonDays, setHorizonDays] = useState(7);
   const [topVehicles, setTopVehicles] = useState(5);
+  const martQuality = useMartQuality(cfg);
 
   const queryOptions = useMemo(
     () => ({
@@ -101,8 +104,12 @@ export function PredictionsPage({ cfg }: PredictionsPageProps): JSX.Element {
     setScoring(true);
     setScoreError(undefined);
     try {
-      await postPredictionsRefresh(cfg, { horizonDays, lookbackDays: 7, topVehicles });
-      await Promise.all([refresh(), refreshEvaluations(), loadTrustPanels()]);
+      await postPredictionsRefresh(cfg, {
+        horizonDays,
+        lookbackDays: martQuality.report?.lookbackDays ?? 30,
+        topVehicles
+      });
+      await Promise.all([refresh(), refreshEvaluations(), loadTrustPanels(), martQuality.refresh()]);
     } catch (e) {
       setScoreError(
         e instanceof ApiClientError
@@ -112,7 +119,7 @@ export function PredictionsPage({ cfg }: PredictionsPageProps): JSX.Element {
     } finally {
       setScoring(false);
     }
-  }, [cfg, horizonDays, topVehicles, refresh, refreshEvaluations, loadTrustPanels]);
+  }, [cfg, horizonDays, topVehicles, martQuality.report?.lookbackDays, refresh, refreshEvaluations, loadTrustPanels]);
 
   const bundles = result?.bundles ?? [];
   const busy = loading || scoring;
@@ -162,6 +169,11 @@ export function PredictionsPage({ cfg }: PredictionsPageProps): JSX.Element {
       />
 
       <FinanceMetricsCallout />
+      <MartQualityBanner
+        report={martQuality.report}
+        loading={martQuality.loading}
+        error={martQuality.error}
+      />
 
       <div
         style={{

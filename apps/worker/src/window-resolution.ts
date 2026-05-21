@@ -7,7 +7,7 @@ export interface ResolvedWindow {
 }
 
 interface WindowFields {
-  windowPreset: "explicit" | "last_24h_utc" | "last_7d_utc";
+  windowPreset: "explicit" | "last_24h_utc" | "last_7d_utc" | "last_30d_utc";
   windowStart?: string;
   windowEnd?: string;
   asOf: string;
@@ -29,6 +29,9 @@ export function resolveTenantJobWindow(payload: WindowFields, jobTimestampMs: nu
   }
   if (payload.windowPreset === "last_7d_utc") {
     return rollingUtcWindow(jobTimestampMs, 7 * 24 * 60 * 60 * 1000);
+  }
+  if (payload.windowPreset === "last_30d_utc") {
+    return rollingUtcWindow(jobTimestampMs, 30 * 24 * 60 * 60 * 1000);
   }
 
   return {

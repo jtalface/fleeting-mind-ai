@@ -9,6 +9,8 @@ export * from "./fixtures.js";
 export * from "./forecast.js";
 export * from "./forecast/champion-engine.js";
 export * from "./daily-mart.js";
+export * from "./forecast-lookback.js";
+export * from "./mart-quality.js";
 export * from "./rate-card.js";
 export * from "./insight-context.js";
 export * from "./sync-rate-card-from-contract.js";

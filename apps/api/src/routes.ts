@@ -16,8 +16,11 @@ import { listForecastEvaluations } from "../../../packages/analytics/src/list-fo
 import { listForwardAccuracy } from "../../../packages/analytics/src/forward-accuracy.js";
 import { refreshCachedPredictions } from "../../../packages/analytics/src/refresh-predictions.js";
 import { activateBillingContract } from "../../../packages/analytics/src/sync-rate-card-from-contract.js";
+import { assessMartQuality } from "../../../packages/analytics/src/mart-quality.js";
+import { resolveForecastTrainingLookbackDays } from "../../../packages/analytics/src/forecast-lookback.js";
 import type {
   ApiAnalyticsQueryResponse,
+  ApiMartQualityResponse,
   ApiChatResponse,
   ApiFleetLocationsResponse,
   ApiInsightsListResponse,
@@ -43,6 +46,7 @@ import { ApiError } from "./errors.js";
 import { analyticsWindowForLookbackDays, type ApiRuntime } from "./runtime.js";
 import {
   analyticsQueryBodySchema,
+  martQualityQuerySchema,
   chatBodySchema,
   integrationBackfillBodySchema,
   integrationSyncBodySchema,
@@ -174,6 +178,23 @@ export function buildRoutes(runtime: ApiRuntime): Router {
     })().catch(next);
   });
 
+  router.get("/v1/analytics/mart-quality", (req, res, next) => {
+    (async () => {
+      const request = asRequestWithContext(req);
+      const query = martQualityQuerySchema.parse(request.query);
+      const lookbackDays = resolveForecastTrainingLookbackDays(query.lookbackDays);
+      const tenantRuntime = runtime.forTenant(request.context.tenantId);
+      const window = analyticsWindowForLookbackDays(lookbackDays);
+      const report = await assessMartQuality({
+        tenantId: request.context.tenantId,
+        repositories: tenantRuntime.repositories,
+        window,
+        asOf: window.end
+      });
+      res.status(200).json({ data: report } satisfies ApiMartQualityResponse);
+    })().catch(next);
+  });
+
   router.get("/v1/predictions", (req, res, next) => {
     (async () => {
       const request = asRequestWithContext(req);
@@ -251,7 +272,7 @@ export function buildRoutes(runtime: ApiRuntime): Router {
       const request = asRequestWithContext(req);
       const body = predictionsRefreshBodySchema.parse(request.body ?? {});
       const horizonDays = body.horizonDays ?? 7;
-      const lookbackDays = body.lookbackDays ?? 7;
+      const lookbackDays = resolveForecastTrainingLookbackDays(body.lookbackDays);
       const tenantRuntime = runtime.forTenant(request.context.tenantId);
 
       if (!tenantRuntime.repositories.predictionRuns) {

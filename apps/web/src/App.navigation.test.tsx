@@ -53,6 +53,30 @@ describe("App navigation", () => {
             json: async () => ({ data: { tenantId: "tenant_test", evaluations: [] } })
           });
         }
+        if (String(url).includes("/v1/analytics/mart-quality")) {
+          return Promise.resolve({
+            ok: true,
+            json: async () => ({
+              data: {
+                tenantId: "tenant_test",
+                lookbackDays: 30,
+                window: { start: "2026-05-01T00:00:00.000Z", end: new Date().toISOString() },
+                vehicleCount: 1,
+                vehiclesWithMartRows: 1,
+                vehiclesWithZeroDistance: 0,
+                calendarDaysInWindow: 30,
+                daysWithTripActivity: 20,
+                coveragePct: 66,
+                maxGapDays: 1,
+                historyDaysAvailable: 20,
+                minHistoryDaysRequired: 14,
+                minCoveragePctRequired: 50,
+                warnings: [],
+                ok: true
+              }
+            })
+          });
+        }
         if (String(url).includes("/v1/predictions")) {
           return Promise.resolve({
             ok: true,
