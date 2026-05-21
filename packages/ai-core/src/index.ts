@@ -9,3 +9,4 @@ export * from "./memory.js";
 export * from "./grounding.js";
 export * from "./orchestrator.js";
 export * from "./openai-responder.js";
+export * from "./generate-llm-insights.js";

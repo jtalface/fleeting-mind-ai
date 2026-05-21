@@ -14,7 +14,7 @@ describe("processBatchAnalytics", () => {
     const computeKpis = vi.fn().mockResolvedValue(undefined);
     const analytics = {
       computeKpis,
-      generateInsights: vi.fn().mockReturnValue([]),
+      generateInsights: vi.fn().mockResolvedValue([]),
       runForecasts: vi.fn()
     } satisfies AnalyticsService;
 
@@ -43,7 +43,7 @@ describe("processBatchAnalytics", () => {
     const computeKpis = vi.fn().mockResolvedValue(undefined);
     const analytics = {
       computeKpis,
-      generateInsights: vi.fn().mockReturnValue([]),
+      generateInsights: vi.fn().mockResolvedValue([]),
       runForecasts: vi.fn()
     } satisfies AnalyticsService;
 

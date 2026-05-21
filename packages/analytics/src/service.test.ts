@@ -66,7 +66,7 @@ describe("DefaultAnalyticsService", () => {
       },
       asOf: "2026-04-30T23:59:59.999Z"
     });
-    const insights = service.generateInsights(snapshot);
+    const insights = await service.generateInsights(snapshot);
 
     const profit = snapshot.fleetMetrics.find((metric) => metric.metricKey === "profit");
     const idle = snapshot.fleetMetrics.find((metric) => metric.metricKey === "idle_ratio_pct");

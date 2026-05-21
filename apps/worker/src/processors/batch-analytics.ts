@@ -35,7 +35,7 @@ export async function processBatchAnalytics(
   await rebuildDailyMart(input);
 
   const snapshot = await runtime.analytics.computeKpis(input);
-  const insights = runtime.analytics.generateInsights(snapshot);
+  const insights = await runtime.analytics.generateInsights(snapshot);
   if (insights.length > 0) {
     const { persistInsights } = await import("@fleetmind/analytics/persist-insights.js");
     await persistInsights(repositories, insights);

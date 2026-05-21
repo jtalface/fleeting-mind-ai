@@ -111,5 +111,10 @@ const defaultRules: InsightRule[] = [
   new VehicleFuelEfficiencyRule()
 ];
 
-export const generateInsights = (snapshot: KpiSnapshot, rules: InsightRule[] = defaultRules): Insight[] =>
-  rules.flatMap((rule) => rule.evaluate(snapshot));
+export const generateRuleBasedInsights = (
+  snapshot: KpiSnapshot,
+  rules: InsightRule[] = defaultRules
+): Insight[] => rules.flatMap((rule) => rule.evaluate(snapshot));
+
+/** @deprecated Use {@link generateRuleBasedInsights} or an injected LLM insight generator. */
+export const generateInsights = generateRuleBasedInsights;

@@ -1,8 +1,13 @@
-import type { DeterministicForecast } from "@fleetmind/shared/contracts/analytics.js";
+import type { DeterministicForecast, InsightGenerationContext } from "@fleetmind/shared/contracts/analytics.js";
 import type { Insight } from "@fleetmind/shared/contracts/domain.js";
-import type { AnalyticsDataPoint, AnalyticsEngineInput, AnalyticsService } from "./contracts.js";
+import type {
+  AnalyticsDataPoint,
+  AnalyticsEngineInput,
+  AnalyticsService,
+  InsightGenerator
+} from "./contracts.js";
 import { ChampionForecastEngine } from "./forecast/champion-engine.js";
-import { generateInsights } from "./insights.js";
+import { generateRuleBasedInsights } from "./insights.js";
 import { computeKpiSnapshot } from "./kpi.js";
 
 const defaultMetricKeys: DeterministicForecast["metricKey"][] = [
@@ -17,12 +22,20 @@ const defaultMetricKeys: DeterministicForecast["metricKey"][] = [
 export class DefaultAnalyticsService implements AnalyticsService {
   private readonly forecastEngine = new ChampionForecastEngine();
 
+  public constructor(private readonly insightGenerator?: InsightGenerator) {}
+
   public async computeKpis(input: AnalyticsEngineInput) {
     return computeKpiSnapshot(input);
   }
 
-  public generateInsights(snapshot: Awaited<ReturnType<DefaultAnalyticsService["computeKpis"]>>): Insight[] {
-    return generateInsights(snapshot);
+  public async generateInsights(
+    snapshot: Awaited<ReturnType<DefaultAnalyticsService["computeKpis"]>>,
+    context?: InsightGenerationContext
+  ): Promise<Insight[]> {
+    if (this.insightGenerator) {
+      return this.insightGenerator(snapshot, context);
+    }
+    return generateRuleBasedInsights(snapshot);
   }
 
   public runForecasts(

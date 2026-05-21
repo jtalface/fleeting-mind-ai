@@ -33,6 +33,7 @@ fleet-intelligence-ai/
 
 - LLM is a reasoner and narrator, not a calculator.
 - All business KPIs come from deterministic backend functions.
+- **Insights** on the Insights page are LLM-authored from KPI/forecast facts; supporting metrics are attached from the deterministic snapshot (rule-based fallback when OpenAI is unavailable).
 - Every numeric claim in AI output must map to `ToolResult.citations`.
 - Tool execution must be auditable with `requestId` and `tenantId`.
 - Missing data should produce explicit uncertainty text, never fabricated values.

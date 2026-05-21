@@ -1,3 +1,4 @@
+import { createInsightGenerator } from "@fleetmind/ai-core/generate-llm-insights.js";
 import { DefaultAnalyticsService } from "@fleetmind/analytics/service.js";
 import type { PrismaDbClient } from "@fleetmind/database/repositories/prisma.js";
 import { createPrismaTenantRepositories } from "@fleetmind/database/repositories/prisma.js";
@@ -6,7 +7,7 @@ import type { WorkerRuntime } from "./types.js";
 type WorkerPrismaClient = PrismaDbClient & { $disconnect(): Promise<void> };
 
 export function createDefaultWorkerRuntime(prisma: WorkerPrismaClient): WorkerRuntime {
-  const analytics = new DefaultAnalyticsService();
+  const analytics = new DefaultAnalyticsService(createInsightGenerator());
   return {
     analytics,
     getRepositoriesForTenant: (tenantId: string) => createPrismaTenantRepositories(tenantId, prisma),

@@ -7,13 +7,15 @@ Deterministic analytics engine for fleet KPIs, insight rules, and explainable fo
 This package owns:
 
 - KPI calculation modules (`profit`, `profit_margin_pct`, `idle_ratio_pct`, `utilization_pct`, `fuel_cost_per_km`)
-- Rule-based insight generation (no LLM usage)
+- Insight generation contract (`InsightGenerator`); default rule-based fallback in this package
+- LLM insight narration lives in `@fleetmind/ai-core` (`createInsightGenerator`)
 - Forecast engine with deterministic algorithm and explainable output
 
 ## Architecture
 
 - `src/kpi.ts`: computes fleet and per-vehicle KPI snapshots over a custom time window
-- `src/insights.ts`: evaluates threshold/rule logic and emits `Insight[]`
+- `src/insights.ts`: rule-based fallback insights (`generateRuleBasedInsights`)
+- `src/insight-context.ts`: builds forecast summaries for LLM insight prompts
 - `src/rate-card.ts` + `src/daily-mart.ts`: tenant rate cards and vehicle-day mart rollups
 - `src/forecast/champion-engine.ts`: backtested ETS / seasonal naive / gradient-boosting stumps
 - `src/forecast.ts`: legacy linear regression (tests/comparisons only)

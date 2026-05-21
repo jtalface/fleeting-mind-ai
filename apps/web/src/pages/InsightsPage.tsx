@@ -25,7 +25,7 @@ export function InsightsPage({ cfg }: InsightsPageProps): JSX.Element {
     <div>
       <PageHeader
         title="Fleet insights"
-        subtitle="KPIs, deterministic forecasts, and rule-based insights from `/v1/analytics/query`."
+        subtitle="KPIs and forecasts are deterministic; insights are LLM-generated from those facts (OpenAI when configured)."
         actions={
           <button
             type="button"

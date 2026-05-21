@@ -12,6 +12,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@fleetmind/ai-core": "workspace:*",
     "@fleetmind/analytics": "workspace:*",
     "@fleetmind/database": "workspace:*",
     "@fleetmind/integrations": "workspace:*",

@@ -24,7 +24,7 @@ export interface OpenAiResponderOptions {
 const PLACEHOLDER_KEYS = new Set(["replace-me", "your-openai-key"]);
 
 /** gpt-5* models only support the default temperature; omit the param to avoid 400 errors. */
-function openAiTemperature(model: string, value: number): { temperature?: number } {
+export function openAiTemperature(model: string, value: number): { temperature?: number } {
   if (/^gpt-5/i.test(model)) {
     return {};
   }

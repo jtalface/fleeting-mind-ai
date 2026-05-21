@@ -64,6 +64,21 @@ export interface DeterministicForecast {
   explanation: ForecastExplanation;
 }
 
+export interface InsightForecastSummary {
+  metricKey: DeterministicForecast["metricKey"];
+  algorithm: ForecastAlgorithm;
+  sampleSize: number;
+  backtestMapePct?: number;
+  horizonDays: number;
+  /** First horizon day P50 from cached/scored forecast. */
+  nextP50?: number;
+}
+
+/** Optional deterministic context passed to the insight generator (LLM narrates these facts only). */
+export interface InsightGenerationContext {
+  forecasts?: InsightForecastSummary[];
+}
+
 export interface AnalyticsReport {
   tenantId: TenantId;
   generatedAt: TimestampIso;

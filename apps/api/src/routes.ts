@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { buildDailyHistoryFromRepositories } from "../../../packages/analytics/src/history.js";
+import { buildInsightGenerationContext } from "../../../packages/analytics/src/insight-context.js";
 import { persistInsights } from "../../../packages/analytics/src/persist-insights.js";
 import { listCachedPredictions } from "../../../packages/analytics/src/list-predictions.js";
 import { refreshCachedPredictions } from "../../../packages/analytics/src/refresh-predictions.js";
@@ -120,15 +121,23 @@ export function buildRoutes(runtime: ApiRuntime): Router {
         window: body.window,
         asOf
       };
-      const generatedInsights = tenantRuntime.analyticsService.generateInsights(kpis);
-      await persistInsights(tenantRuntime.repositories, generatedInsights);
-      const insights = await tenantRuntime.repositories.insights.listRecent(50);
       const history = await buildDailyHistoryFromRepositories(engineInput);
       const forecasts = tenantRuntime.analyticsService.runForecasts(
         engineInput,
         history,
         body.horizonDays ?? 7
       );
+      const generatedInsights = await tenantRuntime.analyticsService.generateInsights(
+        kpis,
+        buildInsightGenerationContext(forecasts)
+      );
+      const persisted = await persistInsights(tenantRuntime.repositories, generatedInsights);
+      const historical = await tenantRuntime.repositories.insights.listRecent(50);
+      const freshIds = new Set(persisted.map((item) => item.id));
+      const insights = [
+        ...persisted,
+        ...historical.filter((item) => !freshIds.has(item.id))
+      ].slice(0, 50);
 
       res.status(200).json({
         data: {

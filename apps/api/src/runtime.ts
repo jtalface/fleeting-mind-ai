@@ -2,6 +2,8 @@ import { AgentOrchestrator } from "../../../packages/ai-core/src/orchestrator.js
 import { InMemoryConversationMemory } from "../../../packages/ai-core/src/memory.js";
 import { ToolRegistry } from "../../../packages/ai-core/src/tool-registry.js";
 import { persistInsights } from "../../../packages/analytics/src/persist-insights.js";
+import { createInsightGenerator } from "../../../packages/ai-core/src/generate-llm-insights.js";
+import { buildInsightGenerationContext } from "../../../packages/analytics/src/insight-context.js";
 import { DefaultAnalyticsService } from "../../../packages/analytics/src/service.js";
 import { computeVehicleGroupMetrics } from "../../../packages/analytics/src/vehicle-group-metrics.js";
 import { buildDailyHistoryFromRepositories } from "../../../packages/analytics/src/history.js";
@@ -46,7 +48,7 @@ const defaultWindow = (): { start: string; end: string } => analyticsWindowForLo
 
 export class ApiRuntime {
   private readonly tenants = new Map<string, TenantRuntime>();
-  private readonly analyticsService = new DefaultAnalyticsService();
+  private readonly analyticsService = new DefaultAnalyticsService(createInsightGenerator());
   private readonly memory = new InMemoryConversationMemory();
   private readonly registry = new ToolRegistry();
   private readonly orchestrator: AgentOrchestrator;
@@ -122,7 +124,12 @@ export class ApiRuntime {
       asOf: window.end
     };
     const kpis = await tenantRuntime.analyticsService.computeKpis(engineInput);
-    const generated = tenantRuntime.analyticsService.generateInsights(kpis);
+    const history = await buildDailyHistoryFromRepositories(engineInput);
+    const forecasts = tenantRuntime.analyticsService.runForecasts(engineInput, history, 7);
+    const generated = await tenantRuntime.analyticsService.generateInsights(
+      kpis,
+      buildInsightGenerationContext(forecasts)
+    );
     return persistInsights(tenantRuntime.repositories, generated);
   }
 

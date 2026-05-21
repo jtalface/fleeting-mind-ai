@@ -1,5 +1,9 @@
 import type { TenantRepositorySet } from "../../database/src/repositories/contracts.js";
-import type { DeterministicForecast, KpiSnapshot } from "@fleetmind/shared/contracts/analytics.js";
+import type {
+  DeterministicForecast,
+  InsightGenerationContext,
+  KpiSnapshot
+} from "@fleetmind/shared/contracts/analytics.js";
 import type { Insight, TenantId, TimestampIso } from "@fleetmind/shared/contracts/domain.js";
 
 export interface AnalyticsTimeWindow {
@@ -49,8 +53,13 @@ export interface ForecastEngine {
   evaluateQuality(prediction: number[], actual: number[], lowerBand: number[], upperBand: number[]): ForecastQualityMetrics;
 }
 
+export type InsightGenerator = (
+  snapshot: KpiSnapshot,
+  context?: InsightGenerationContext
+) => Promise<Insight[]>;
+
 export interface AnalyticsService {
   computeKpis(input: AnalyticsEngineInput): Promise<KpiSnapshot>;
-  generateInsights(snapshot: KpiSnapshot): Insight[];
+  generateInsights(snapshot: KpiSnapshot, context?: InsightGenerationContext): Promise<Insight[]>;
   runForecasts(input: AnalyticsEngineInput, history: AnalyticsDataPoint[], horizonDays: number): DeterministicForecast[];
 }
