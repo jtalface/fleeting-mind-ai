@@ -1,3 +1,5 @@
+import type { DeterministicForecast, ForecastExplanation } from "@fleetmind/shared/contracts/analytics.js";
+import type { PredictionScopeType } from "@fleetmind/shared/contracts/predictions.js";
 import type {
   Conversation,
   ConversationMessage,
@@ -146,6 +148,47 @@ export interface ForecastEvaluationRepository {
   create(record: ForecastEvaluationRecord): Promise<void>;
 }
 
+export interface PredictionPointRecord {
+  date: string;
+  p10: number;
+  p50: number;
+  p90: number;
+}
+
+export interface PredictionRunRecord {
+  tenantId: string;
+  scopeType: PredictionScopeType;
+  scopeKey: string;
+  nameIncludes?: string;
+  metricKey: DeterministicForecast["metricKey"];
+  algorithm: string;
+  trainedUntil: string;
+  horizonDays: number;
+  sampleSize: number;
+  backtestMapePct?: number;
+  championSelected: boolean;
+  explanation: ForecastExplanation;
+  points: PredictionPointRecord[];
+}
+
+export interface PredictionRunStored extends Omit<PredictionRunRecord, "points"> {
+  id: string;
+  createdAt: string;
+  points: PredictionPointRecord[];
+}
+
+export interface ListLatestPredictionRunsQuery {
+  horizonDays: number;
+  scopeType?: PredictionScopeType;
+  scopeKey?: string;
+  metricKey?: string;
+}
+
+export interface PredictionRunRepository {
+  replaceRun(record: PredictionRunRecord): Promise<void>;
+  listLatest(query: ListLatestPredictionRunsQuery): Promise<PredictionRunStored[]>;
+}
+
 export interface TenantRepositorySet {
   vehicles: VehicleRepository;
   telemetry: TelemetryRepository;
@@ -158,4 +201,5 @@ export interface TenantRepositorySet {
   rateCards?: RateCardRepository;
   fleetMetricDaily?: FleetMetricDailyRepository;
   forecastEvaluations?: ForecastEvaluationRepository;
+  predictionRuns?: PredictionRunRepository;
 }

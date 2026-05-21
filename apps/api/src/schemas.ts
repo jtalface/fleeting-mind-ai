@@ -55,3 +55,21 @@ export const integrationSyncBodySchema = z.object({
   deviceNameIncludes: z.string().min(1).optional(),
   maxDevices: z.number().int().min(0).max(500).optional()
 });
+
+export const predictionsListQuerySchema = z.object({
+  horizonDays: z.coerce.number().int().min(1).max(90).default(7),
+  scopeType: z.enum(["fleet", "segment"]).optional(),
+  scopeKey: z.string().min(1).optional(),
+  metricKey: z.string().min(1).optional()
+});
+
+export const predictionsRefreshBodySchema = z.object({
+  horizonDays: z.number().int().min(1).max(90).optional(),
+  lookbackDays: z.number().int().min(1).max(90).optional()
+});
+
+export const tenantRateCardUpsertBodySchema = z.object({
+  revenuePerKm: z.number().positive(),
+  operatingCostPerKm: z.number().nonnegative(),
+  currency: z.string().min(3).max(3).optional()
+});

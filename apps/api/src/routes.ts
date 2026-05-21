@@ -1,6 +1,8 @@
 import { Router } from "express";
 import { buildDailyHistoryFromRepositories } from "../../../packages/analytics/src/history.js";
 import { persistInsights } from "../../../packages/analytics/src/persist-insights.js";
+import { listCachedPredictions } from "../../../packages/analytics/src/list-predictions.js";
+import { refreshCachedPredictions } from "../../../packages/analytics/src/refresh-predictions.js";
 import type {
   ApiAnalyticsQueryResponse,
   ApiChatResponse,
@@ -9,7 +11,10 @@ import type {
   ApiIntegrationPreviewResponse,
   ApiIntegrationStatusResponse,
   ApiIntegrationSyncResponse,
-  ApiTelemetryIngestResponse
+  ApiPredictionsListResponse,
+  ApiPredictionsRefreshResponse,
+  ApiTelemetryIngestResponse,
+  ApiTenantRateCardResponse
 } from "../../../packages/shared/src/contracts/api.js";
 import { listFleetVehicleLocations } from "../../../packages/telemetry/src/fleet-locations.js";
 import type { TelemetryIngestPointInput, VehicleTimelineQueryInput } from "../../../packages/shared/src/contracts/telemetry.js";
@@ -20,7 +25,10 @@ import {
   chatBodySchema,
   integrationBackfillBodySchema,
   integrationSyncBodySchema,
-  telemetryIngestBodySchema
+  predictionsListQuerySchema,
+  predictionsRefreshBodySchema,
+  telemetryIngestBodySchema,
+  tenantRateCardUpsertBodySchema
 } from "./schemas.js";
 import type { RequestWithContext } from "./types.js";
 
@@ -131,6 +139,93 @@ export function buildRoutes(runtime: ApiRuntime): Router {
           forecasts
         }
       } satisfies ApiAnalyticsQueryResponse);
+    })().catch(next);
+  });
+
+  router.get("/v1/predictions", (req, res, next) => {
+    (async () => {
+      const request = asRequestWithContext(req);
+      const query = predictionsListQuerySchema.parse(request.query);
+      const tenantRuntime = runtime.forTenant(request.context.tenantId);
+      const asOf = new Date().toISOString();
+      const result = await listCachedPredictions(
+        request.context.tenantId,
+        tenantRuntime.repositories,
+        {
+          horizonDays: query.horizonDays,
+          ...(query.scopeType ? { scopeType: query.scopeType } : {}),
+          ...(query.scopeKey ? { scopeKey: query.scopeKey } : {}),
+          ...(query.metricKey ? { metricKey: query.metricKey } : {})
+        },
+        asOf
+      );
+      res.status(200).json({ data: result } satisfies ApiPredictionsListResponse);
+    })().catch(next);
+  });
+
+  router.post("/v1/predictions/refresh", (req, res, next) => {
+    (async () => {
+      const request = asRequestWithContext(req);
+      const body = predictionsRefreshBodySchema.parse(request.body ?? {});
+      const horizonDays = body.horizonDays ?? 7;
+      const lookbackDays = body.lookbackDays ?? 7;
+      const tenantRuntime = runtime.forTenant(request.context.tenantId);
+
+      if (!tenantRuntime.repositories.predictionRuns) {
+        throw new ApiError(
+          501,
+          "PREDICTIONS_UNAVAILABLE",
+          "Prediction storage requires Postgres (DATABASE_URL). Remove API_STORAGE=memory and run migrations."
+        );
+      }
+
+      const window = analyticsWindowForLookbackDays(lookbackDays);
+      const asOf = window.end;
+      const engineInput = {
+        tenantId: request.context.tenantId,
+        repositories: tenantRuntime.repositories,
+        window,
+        asOf
+      };
+
+      const result = await refreshCachedPredictions(
+        engineInput,
+        tenantRuntime.analyticsService,
+        tenantRuntime.repositories,
+        { horizonDays },
+        asOf
+      );
+
+      res.status(200).json({ data: result } satisfies ApiPredictionsRefreshResponse);
+    })().catch(next);
+  });
+
+  router.get("/v1/tenant/rate-card", (req, res, next) => {
+    (async () => {
+      const request = asRequestWithContext(req);
+      const tenantRuntime = runtime.forTenant(request.context.tenantId);
+      if (!tenantRuntime.repositories.rateCards) {
+        throw new ApiError(501, "RATE_CARD_UNAVAILABLE", "Rate card storage is not configured.");
+      }
+      const card = await tenantRuntime.repositories.rateCards.get();
+      res.status(200).json({
+        data: { tenantId: request.context.tenantId, ...card }
+      } satisfies ApiTenantRateCardResponse);
+    })().catch(next);
+  });
+
+  router.put("/v1/tenant/rate-card", (req, res, next) => {
+    (async () => {
+      const request = asRequestWithContext(req);
+      const body = tenantRateCardUpsertBodySchema.parse(request.body);
+      const tenantRuntime = runtime.forTenant(request.context.tenantId);
+      if (!tenantRuntime.repositories.rateCards) {
+        throw new ApiError(501, "RATE_CARD_UNAVAILABLE", "Rate card storage is not configured.");
+      }
+      const card = await tenantRuntime.repositories.rateCards.upsert(body);
+      res.status(200).json({
+        data: { tenantId: request.context.tenantId, ...card }
+      } satisfies ApiTenantRateCardResponse);
     })().catch(next);
   });
 

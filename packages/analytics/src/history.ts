@@ -1,4 +1,5 @@
-import type { AnalyticsDataPoint, AnalyticsEngineInput } from "./contracts.js";
+import type { AnalyticsDataPoint, AnalyticsEngineInput, HistorySegmentFilter } from "./contracts.js";
+import { filterVehiclesByNameNeedle } from "./vehicle-group-metrics.js";
 import { MIN_SERIES_FOR_BACKTEST } from "./forecast/backtest.js";
 import { rebuildDailyMart } from "./daily-mart.js";
 import { resolveTenantRateCard } from "./rate-card.js";
@@ -48,9 +49,10 @@ const aggregateMartToHistory = (
  */
 export async function buildDailyHistoryFromRepositories(
   input: AnalyticsEngineInput,
-  maxDays = 90
+  maxDays = 90,
+  segmentFilter?: HistorySegmentFilter
 ): Promise<AnalyticsDataPoint[]> {
-  const tripHistory = await buildHistoryFromRawTrips(input, maxDays);
+  const tripHistory = await buildHistoryFromRawTrips(input, maxDays, segmentFilter);
   if (tripHistory.length >= MIN_SERIES_FOR_BACKTEST) {
     return tripHistory;
   }
@@ -90,12 +92,20 @@ export async function buildDailyHistoryFromRepositories(
   return martHistory.length >= tripHistory.length ? martHistory : tripHistory;
 }
 
-async function buildHistoryFromRawTrips(input: AnalyticsEngineInput, maxDays: number): Promise<AnalyticsDataPoint[]> {
+async function buildHistoryFromRawTrips(
+  input: AnalyticsEngineInput,
+  maxDays: number,
+  segmentFilter?: HistorySegmentFilter
+): Promise<AnalyticsDataPoint[]> {
   const { repositories, window } = input;
-  const [vehicles, rateCard] = await Promise.all([
+  const [allVehicles, rateCard] = await Promise.all([
     repositories.vehicles.list(),
     resolveTenantRateCard(repositories, input.tenantId)
   ]);
+  const vehicles =
+    segmentFilter?.nameIncludes !== undefined
+      ? filterVehiclesByNameNeedle(allVehicles, segmentFilter.nameIncludes)
+      : allVehicles;
 
   const [allTrips, telemetryPoints] = await Promise.all([
     Promise.all(vehicles.map((vehicle) => repositories.trips.listByVehicle(vehicle.id))).then((rows) =>

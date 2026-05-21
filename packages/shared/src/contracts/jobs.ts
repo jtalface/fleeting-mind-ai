@@ -38,12 +38,18 @@ export const batchAnalyticsJobPayloadSchema = tenantScopedJobBaseSchema.extend({
 
 export type BatchAnalyticsJobPayload = z.infer<typeof batchAnalyticsJobPayloadSchema>;
 
+const segmentScopeSchema = z.object({
+  scopeKey: z.string().min(1),
+  nameIncludes: z.string().min(1)
+});
+
 export const forecastRefreshJobPayloadSchema = tenantScopedJobBaseSchema.extend({
   asOf: z.string(),
   horizonDays: z.number().int().positive().max(365),
   windowPreset: windowPresetSchema.default("explicit"),
   windowStart: z.string().optional(),
-  windowEnd: z.string().optional()
+  windowEnd: z.string().optional(),
+  segmentScopes: z.array(segmentScopeSchema).optional()
 }).superRefine((value, ctx) => {
   if (value.windowPreset === "explicit") {
     if (!value.windowStart || !value.windowEnd) {

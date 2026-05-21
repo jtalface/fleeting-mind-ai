@@ -46,6 +46,9 @@ export function AppShell(): JSX.Element {
             <NavLink to="/insights" style={linkStyle}>
               Insights
             </NavLink>
+            <NavLink to="/predictions" style={linkStyle}>
+              Predictions
+            </NavLink>
             <NavLink to="/map" style={linkStyle}>
               Map
             </NavLink>

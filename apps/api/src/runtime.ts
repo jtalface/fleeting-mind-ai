@@ -357,10 +357,12 @@ export class ApiRuntime {
     });
 
     this.registry.register("get_forecast", async (request) => {
-      const horizonDays =
-        typeof request.input === "object" && request.input && "horizonDays" in request.input
-          ? Number((request.input as { horizonDays?: unknown }).horizonDays ?? 7)
-          : 7;
+      const raw = typeof request.input === "object" && request.input ? request.input : {};
+      const horizonDays = Number((raw as { horizonDays?: unknown }).horizonDays ?? 7);
+      const nameIncludes =
+        typeof (raw as { nameIncludes?: unknown }).nameIncludes === "string"
+          ? (raw as { nameIncludes: string }).nameIncludes
+          : undefined;
       const runtime = this.forTenant(request.context.tenantId);
       const window = defaultWindow();
       const input = {
@@ -369,14 +371,41 @@ export class ApiRuntime {
         asOf: request.context.now,
         window
       };
-      const history = await buildDailyHistoryFromRepositories(input);
+      const segmentFilter = nameIncludes ? { nameIncludes } : undefined;
+      const history = await buildDailyHistoryFromRepositories(input, 90, segmentFilter);
+      const clampedHorizon = Math.max(1, Math.min(30, horizonDays));
+
+      const cached = runtime.repositories.predictionRuns
+        ? await runtime.repositories.predictionRuns.listLatest({
+            horizonDays: clampedHorizon,
+            ...(nameIncludes ? { scopeType: "segment" as const, scopeKey: nameIncludes } : { scopeType: "fleet" as const, scopeKey: "fleet" })
+          })
+        : [];
+
+      if (cached.length > 0) {
+        const { bundlesFromRuns } = await import("../../../packages/analytics/src/persist-predictions.js");
+        return {
+          toolName: "get_forecast",
+          ok: true,
+          observedAt: request.context.now,
+          citations: ["predictions:cache"],
+          data: bundlesFromRuns(cached).map((bundle) => ({
+            tenantId: bundle.tenantId,
+            metricKey: bundle.metricKey,
+            trainedUntil: bundle.trainedUntil,
+            horizonDays: bundle.horizonDays,
+            predictedPoints: bundle.predictedPoints,
+            explanation: bundle.explanation
+          }))
+        };
+      }
 
       return {
         toolName: "get_forecast",
         ok: true,
         observedAt: request.context.now,
         citations: ["analytics:forecast:revenue"],
-        data: runtime.analyticsService.runForecasts(input, history, Math.max(1, Math.min(30, horizonDays)))
+        data: runtime.analyticsService.runForecasts(input, history, clampedHorizon)
       };
     });
 

@@ -17,8 +17,17 @@ export interface KpiSnapshot {
 
 export interface ForecastPoint {
   date: string;
+  /** Median forecast (P50). */
+  p50: number;
+  /** Lower quantile (P10). */
+  p10: number;
+  /** Upper quantile (P90). */
+  p90: number;
+  /** Alias for {@link p50} — chart compatibility. */
   value: number;
+  /** Alias for {@link p10}. */
   lowerBound: number;
+  /** Alias for {@link p90}. */
   upperBound: number;
 }
 

@@ -10,10 +10,10 @@
     "lint": "eslint src --ext .ts",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run",
-    "prisma:generate": "prisma generate",
-    "prisma:migrate:dev": "prisma migrate dev",
-    "prisma:migrate:deploy": "prisma migrate deploy",
-    "prisma:seed": "prisma db seed"
+    "prisma:generate": "dotenv -e ../../.env -- prisma generate",
+    "prisma:migrate:dev": "dotenv -e ../../.env -- prisma migrate dev",
+    "prisma:migrate:deploy": "dotenv -e ../../.env -- prisma migrate deploy",
+    "prisma:seed": "dotenv -e ../../.env -- prisma db seed"
   },
   "dependencies": {
     "@fleetmind/shared": "workspace:*",
@@ -21,6 +21,7 @@
     "zod": "^3.23.8"
   },
   "devDependencies": {
+    "dotenv-cli": "^7.4.2",
     "prisma": "^5.20.0",
     "vitest": "^2.1.2"
   },

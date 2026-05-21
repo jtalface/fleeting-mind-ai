@@ -1,7 +1,7 @@
 import type { ForecastAlgorithm } from "@fleetmind/shared/contracts/analytics.js";
 import { etsForecast } from "./ets.js";
 import { gradientBoostingStumpsForecast } from "./gradient-boost.js";
-import { mapePct, round } from "./math.js";
+import { mapePct, quantile, round, stdDev } from "./math.js";
 import { seasonalNaiveForecast } from "./seasonal-naive.js";
 
 export interface BacktestCandidateResult {
@@ -75,14 +75,39 @@ export function forecastWithAlgorithm(
 }
 
 export function holdoutResidualStdDev(series: number[], algorithm: ForecastAlgorithm): number {
+  const residuals = holdoutSignedResiduals(series, algorithm);
+  return round(stdDev(residuals));
+}
+
+/** Signed holdout errors: actual − forecast (used for P10/P90 offsets). */
+export function holdoutSignedResiduals(series: number[], algorithm: ForecastAlgorithm): number[] {
   if (series.length < 2) {
-    return 0;
+    return [];
   }
   const holdoutDays = Math.min(DEFAULT_HOLDOUT_DAYS, Math.max(1, series.length - 1));
   const train = series.slice(0, -holdoutDays);
   const predicted = forecastWithAlgorithm(algorithm, train, holdoutDays);
   const actual = series.slice(-holdoutDays);
-  const residuals = actual.map((value, index) => value - (predicted[index] ?? value));
-  const variance = residuals.reduce((sum, value) => sum + value ** 2, 0) / Math.max(1, residuals.length);
-  return round(Math.sqrt(variance));
+  return actual.map((value, index) => value - (predicted[index] ?? value));
+}
+
+export interface HoldoutQuantileOffsets {
+  p10Offset: number;
+  p90Offset: number;
+}
+
+/** Empirical P10/P90 offsets from rolling holdout residuals (actual − forecast). */
+export function holdoutResidualQuantileOffsets(
+  series: number[],
+  algorithm: ForecastAlgorithm
+): HoldoutQuantileOffsets {
+  const residuals = holdoutSignedResiduals(series, algorithm);
+  if (residuals.length === 0) {
+    const fallback = holdoutResidualStdDev(series, algorithm) * 1.28;
+    return { p10Offset: round(-fallback), p90Offset: round(fallback) };
+  }
+  return {
+    p10Offset: round(quantile(residuals, 0.1)),
+    p90Offset: round(quantile(residuals, 0.9))
+  };
 }

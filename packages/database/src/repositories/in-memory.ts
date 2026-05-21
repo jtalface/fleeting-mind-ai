@@ -20,6 +20,9 @@ import type {
   FleetMetricDailyRow,
   ForecastEvaluationRecord,
   IntegrationSyncStateRecord,
+  ListLatestPredictionRunsQuery,
+  PredictionRunRecord,
+  PredictionRunStored,
   TenantRateCardRecord,
   TenantRepositorySet,
   UpsertTenantRateCardInput,
@@ -280,6 +283,62 @@ export class InMemoryTenantRepositories implements TenantRepositorySet {
   public readonly forecastEvaluations = {
     create: async (record: ForecastEvaluationRecord): Promise<void> => {
       this.forecastEvalStore.push(record);
+    }
+  };
+
+  private readonly predictionRunStore: PredictionRunStored[] = [];
+
+  public readonly predictionRuns = {
+    replaceRun: async (record: PredictionRunRecord): Promise<void> => {
+      const idx = this.predictionRunStore.findIndex(
+        (row) =>
+          row.scopeType === record.scopeType &&
+          row.scopeKey === record.scopeKey &&
+          row.metricKey === record.metricKey &&
+          row.horizonDays === record.horizonDays
+      );
+      const stored: PredictionRunStored = {
+        id: randomId("pred"),
+        tenantId: record.tenantId,
+        scopeType: record.scopeType,
+        scopeKey: record.scopeKey,
+        ...(record.nameIncludes ? { nameIncludes: record.nameIncludes } : {}),
+        metricKey: record.metricKey,
+        algorithm: record.algorithm,
+        trainedUntil: record.trainedUntil,
+        horizonDays: record.horizonDays,
+        sampleSize: record.sampleSize,
+        ...(record.backtestMapePct !== undefined ? { backtestMapePct: record.backtestMapePct } : {}),
+        championSelected: record.championSelected,
+        explanation: record.explanation,
+        createdAt: nowIso(),
+        points: record.points
+      };
+      if (idx >= 0) {
+        this.predictionRunStore[idx] = stored;
+      } else {
+        this.predictionRunStore.push(stored);
+      }
+    },
+    listLatest: async (query: ListLatestPredictionRunsQuery): Promise<PredictionRunStored[]> => {
+      const filtered = this.predictionRunStore
+        .filter((row) => row.tenantId === this.tenantId && row.horizonDays === query.horizonDays)
+        .filter((row) => (query.scopeType ? row.scopeType === query.scopeType : true))
+        .filter((row) => (query.scopeKey ? row.scopeKey === query.scopeKey : true))
+        .filter((row) => (query.metricKey ? row.metricKey === query.metricKey : true))
+        .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+
+      const seen = new Set<string>();
+      const latest: PredictionRunStored[] = [];
+      for (const row of filtered) {
+        const key = `${row.scopeType}:${row.scopeKey}:${row.metricKey}`;
+        if (seen.has(key)) {
+          continue;
+        }
+        seen.add(key);
+        latest.push(row);
+      }
+      return latest;
     }
   };
 

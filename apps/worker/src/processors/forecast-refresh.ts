@@ -32,12 +32,17 @@ export async function processForecastRefresh(
   };
 
   const { rebuildDailyMart } = await import("@fleetmind/analytics/daily-mart.js");
-  const { buildDailyHistoryFromRepositories } = await import("@fleetmind/analytics/history.js");
   const { persistForecastEvaluations } = await import("@fleetmind/analytics/persist-forecast-evaluations.js");
+  const { persistPredictionBatches } = await import("@fleetmind/analytics/persist-predictions.js");
+  const { runBatchPredictions } = await import("@fleetmind/analytics/run-batch-predictions.js");
 
   await rebuildDailyMart(input);
-  const history = await buildDailyHistoryFromRepositories(input);
-  const forecasts = runtime.analytics.runForecasts(input, history, payload.horizonDays);
-  await persistForecastEvaluations(repositories, forecasts);
+  const batches = await runBatchPredictions(input, runtime.analytics, {
+    horizonDays: payload.horizonDays,
+    ...(payload.segmentScopes ? { segmentScopes: payload.segmentScopes } : {})
+  });
+  const allForecasts = batches.flatMap((batch) => batch.forecasts);
+  await persistForecastEvaluations(repositories, allForecasts);
+  await persistPredictionBatches(repositories, batches);
   return { skipped: false };
 }

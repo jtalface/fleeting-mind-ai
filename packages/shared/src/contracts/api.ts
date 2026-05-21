@@ -1,6 +1,7 @@
 import type { AnalyticsReport } from "./analytics.js";
 import type { IntegrationSyncResult } from "./integrations.js";
 import type { CopilotResponse } from "./ai.js";
+import type { PredictionsListResult } from "./predictions.js";
 import type { TelemetryIngestInput, TelemetryIngestResult } from "./telemetry.js";
 
 export interface ApiTelemetryIngestRequest extends TelemetryIngestInput {}
@@ -32,6 +33,37 @@ export interface ApiChatResponse {
 
 export interface ApiInsightsListResponse {
   data: AnalyticsReport["insights"];
+}
+
+export interface ApiPredictionsListResponse {
+  data: PredictionsListResult;
+}
+
+export interface ApiPredictionsRefreshRequest {
+  horizonDays?: number;
+  /** Days of history used to train forecasts (default 7). */
+  lookbackDays?: number;
+}
+
+export interface ApiPredictionsRefreshResponse {
+  data: PredictionsListResult;
+}
+
+export interface TenantRateCardDto {
+  tenantId: string;
+  revenuePerKm: number;
+  operatingCostPerKm: number;
+  currency: string;
+}
+
+export interface ApiTenantRateCardResponse {
+  data: TenantRateCardDto;
+}
+
+export interface ApiTenantRateCardUpsertRequest {
+  revenuePerKm: number;
+  operatingCostPerKm: number;
+  currency?: string;
 }
 
 export interface FleetVehicleLocationDto {

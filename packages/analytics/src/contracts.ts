@@ -23,6 +23,11 @@ export interface AnalyticsEngineInput {
   asOf: TimestampIso;
 }
 
+/** Restricts daily history to vehicles whose identifiers match `nameIncludes`. */
+export interface HistorySegmentFilter {
+  nameIncludes: string;
+}
+
 export interface InsightRule {
   evaluate(snapshot: KpiSnapshot): Insight[];
 }

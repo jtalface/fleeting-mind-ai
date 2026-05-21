@@ -78,11 +78,17 @@ export class DeterministicForecastEngine implements ForecastEngine {
     const predictedPoints = Array.from({ length: horizonDays }, (_, index) => {
       const x = series.length + index;
       const value = intercept + slope * x;
+      const p50 = round(value);
+      const p10 = round(value - band);
+      const p90 = round(value + band);
       return {
         date: buildFutureDate(asOf, index + 1),
-        value: round(value),
-        lowerBound: round(value - band),
-        upperBound: round(value + band)
+        p50,
+        p10,
+        p90,
+        value: p50,
+        lowerBound: p10,
+        upperBound: p90
       };
     });
 

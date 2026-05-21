@@ -20,6 +20,9 @@ import type {
   FleetMetricDailyRow,
   ForecastEvaluationRecord,
   IntegrationSyncStateRecord,
+  ListLatestPredictionRunsQuery,
+  PredictionRunRecord,
+  PredictionRunStored,
   TenantRepositorySet,
   UpsertTenantRateCardInput,
   UpsertVehicleFromExternalInput
@@ -78,7 +81,11 @@ type TelemetryDelegate = Delegate<
     take?: number;
   },
   TelemetryPointRow
->;
+> & {
+  findUnique(args: {
+    where: { tenantId_vehicleId_timestamp: { tenantId: string; vehicleId: string; timestamp: Date } };
+  }): Promise<TelemetryPointRow | null>;
+};
 
 type TripDelegate = Delegate<
   Omit<TripRow, "id" | "createdAt">,
@@ -189,7 +196,95 @@ type FleetMetricDailyDelegate = {
 };
 
 type ForecastEvaluationDelegate = {
-  create(args: { data: Omit<ForecastEvaluationRecord, never> & { trainedUntil: Date } }): Promise<unknown>;
+  create(args: {
+    data: {
+      tenantId: string;
+      metricKey: string;
+      algorithm: string;
+      trainedUntil: Date;
+      horizonDays: number;
+      mae: number;
+      maePct: number;
+      withinBandPct: number;
+      sampleSize: number;
+    };
+  }): Promise<unknown>;
+};
+
+type PredictionPointRowDb = {
+  id: string;
+  runId: string;
+  tenantId: string;
+  date: Date;
+  p10: number;
+  p50: number;
+  p90: number;
+};
+
+type PredictionRunRowDb = {
+  id: string;
+  tenantId: string;
+  scopeType: "fleet" | "segment";
+  scopeKey: string;
+  nameIncludes: string | null;
+  metricKey: string;
+  algorithm: string;
+  trainedUntil: Date;
+  horizonDays: number;
+  sampleSize: number;
+  backtestMapePct: number | null;
+  championSelected: boolean;
+  explanationJson: string;
+  createdAt: Date;
+  points: PredictionPointRowDb[];
+};
+
+type PredictionRunDelegate = {
+  deleteMany(args: {
+    where: {
+      tenantId: string;
+      scopeType?: "fleet" | "segment";
+      scopeKey?: string;
+      metricKey?: string;
+      horizonDays?: number;
+    };
+  }): Promise<{ count: number }>;
+  create(args: {
+    data: {
+      tenantId: string;
+      scopeType: "fleet" | "segment";
+      scopeKey: string;
+      nameIncludes: string | null;
+      metricKey: string;
+      algorithm: string;
+      trainedUntil: Date;
+      horizonDays: number;
+      sampleSize: number;
+      backtestMapePct: number | null;
+      championSelected: boolean;
+      explanationJson: string;
+      points: {
+        create: Array<{
+          tenantId: string;
+          date: Date;
+          p10: number;
+          p50: number;
+          p90: number;
+        }>;
+      };
+    };
+  }): Promise<PredictionRunRowDb>;
+  findMany(args: {
+    where: {
+      tenantId: string;
+      horizonDays: number;
+      scopeType?: "fleet" | "segment";
+      scopeKey?: string;
+      metricKey?: string;
+    };
+    include: { points: { orderBy: { date: "asc" } } };
+    orderBy: { createdAt: "desc" };
+  }): Promise<PredictionRunRowDb[]>;
 };
 
 export interface PrismaDbClient {
@@ -205,6 +300,8 @@ export interface PrismaDbClient {
   tenantRateCard: TenantRateCardDelegate;
   fleetMetricDaily: FleetMetricDailyDelegate;
   forecastEvaluation: ForecastEvaluationDelegate;
+  predictionRun: PredictionRunDelegate;
+  $transaction: <T>(fn: (tx: PrismaDbClient) => Promise<T>) => Promise<T>;
 }
 
 const toDateOnly = (day: string): Date => new Date(`${day}T00:00:00.000Z`);
@@ -628,6 +725,92 @@ export const createPrismaTenantRepositories = (tenantId: string, db: PrismaDbCli
           sampleSize: record.sampleSize
         }
       });
+    }
+  },
+  predictionRuns: {
+    replaceRun: async (record: PredictionRunRecord): Promise<void> => {
+      await db.$transaction(async (tx) => {
+        await tx.predictionRun.deleteMany({
+          where: {
+            tenantId,
+            scopeType: record.scopeType,
+            scopeKey: record.scopeKey,
+            metricKey: record.metricKey,
+            horizonDays: record.horizonDays
+          }
+        });
+        await tx.predictionRun.create({
+          data: {
+            tenantId,
+            scopeType: record.scopeType,
+            scopeKey: record.scopeKey,
+            nameIncludes: record.nameIncludes ?? null,
+            metricKey: record.metricKey,
+            algorithm: record.algorithm,
+            trainedUntil: new Date(record.trainedUntil),
+            horizonDays: record.horizonDays,
+            sampleSize: record.sampleSize,
+            backtestMapePct: record.backtestMapePct ?? null,
+            championSelected: record.championSelected,
+            explanationJson: JSON.stringify(record.explanation),
+            points: {
+              create: record.points.map((point) => ({
+                tenantId,
+                date: toDateOnly(point.date),
+                p10: point.p10,
+                p50: point.p50,
+                p90: point.p90
+              }))
+            }
+          }
+        });
+      });
+    },
+    listLatest: async (query: ListLatestPredictionRunsQuery): Promise<PredictionRunStored[]> => {
+      const rows = await db.predictionRun.findMany({
+        where: {
+          tenantId,
+          horizonDays: query.horizonDays,
+          ...(query.scopeType ? { scopeType: query.scopeType } : {}),
+          ...(query.scopeKey ? { scopeKey: query.scopeKey } : {}),
+          ...(query.metricKey ? { metricKey: query.metricKey } : {})
+        },
+        include: { points: { orderBy: { date: "asc" } } },
+        orderBy: { createdAt: "desc" }
+      });
+
+      const seen = new Set<string>();
+      const latest: PredictionRunStored[] = [];
+      for (const row of rows) {
+        const key = `${row.scopeType}:${row.scopeKey}:${row.metricKey}`;
+        if (seen.has(key)) {
+          continue;
+        }
+        seen.add(key);
+        latest.push({
+          id: row.id,
+          tenantId: row.tenantId,
+          scopeType: row.scopeType as PredictionRunStored["scopeType"],
+          scopeKey: row.scopeKey,
+          ...(row.nameIncludes ? { nameIncludes: row.nameIncludes } : {}),
+          metricKey: row.metricKey as PredictionRunStored["metricKey"],
+          algorithm: row.algorithm,
+          trainedUntil: row.trainedUntil.toISOString(),
+          horizonDays: row.horizonDays,
+          sampleSize: row.sampleSize,
+          ...(row.backtestMapePct !== null ? { backtestMapePct: row.backtestMapePct } : {}),
+          championSelected: row.championSelected,
+          explanation: JSON.parse(row.explanationJson) as PredictionRunStored["explanation"],
+          createdAt: row.createdAt.toISOString(),
+          points: row.points.map((point: PredictionPointRowDb) => ({
+            date: point.date.toISOString().slice(0, 10),
+            p10: point.p10,
+            p50: point.p50,
+            p90: point.p90
+          }))
+        });
+      }
+      return latest;
     }
   },
   integrationSync: {

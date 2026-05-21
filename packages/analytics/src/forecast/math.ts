@@ -31,3 +31,20 @@ export const buildFutureDate = (asOf: string, dayOffset: number): string => {
   date.setUTCDate(date.getUTCDate() + dayOffset);
   return date.toISOString().slice(0, 10);
 };
+
+/** Linear interpolation quantile (q in [0, 1]). */
+export const quantile = (values: number[], q: number): number => {
+  if (values.length === 0) {
+    return 0;
+  }
+  const sorted = [...values].sort((a, b) => a - b);
+  const position = (sorted.length - 1) * q;
+  const base = Math.floor(position);
+  const remainder = position - base;
+  const lower = sorted[base] ?? 0;
+  const upper = sorted[base + 1];
+  if (upper === undefined) {
+    return lower;
+  }
+  return lower + remainder * (upper - lower);
+};

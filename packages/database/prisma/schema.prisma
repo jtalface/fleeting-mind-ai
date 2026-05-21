@@ -173,6 +173,45 @@ model ForecastEvaluation {
   @@index([tenantId, metricKey, createdAt])
 }
 
+enum PredictionScopeType {
+  fleet
+  segment
+}
+
+model PredictionRun {
+  id               String              @id @default(cuid())
+  tenantId         String
+  scopeType        PredictionScopeType
+  scopeKey         String
+  nameIncludes     String?
+  metricKey        String
+  algorithm        String
+  trainedUntil     DateTime
+  horizonDays      Int
+  sampleSize       Int
+  backtestMapePct  Float?
+  championSelected Boolean             @default(false)
+  explanationJson  String
+  createdAt        DateTime            @default(now())
+  points           PredictionPoint[]
+
+  @@index([tenantId, scopeType, scopeKey, metricKey, horizonDays, createdAt])
+}
+
+model PredictionPoint {
+  id       String        @id @default(cuid())
+  runId    String
+  tenantId String
+  date     DateTime      @db.Date
+  p10      Float
+  p50      Float
+  p90      Float
+  run      PredictionRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+
+  @@unique([runId, date])
+  @@index([tenantId, date])
+}
+
 model Insight {
   id          String          @id @default(cuid())
   tenantId    String

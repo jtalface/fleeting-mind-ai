@@ -35,6 +35,14 @@ describe("App navigation", () => {
             json: async () => ({ data: { vehicleCount: 0, locatedCount: 0, vehicles: [] } })
           });
         }
+        if (String(url).includes("/v1/predictions")) {
+          return Promise.resolve({
+            ok: true,
+            json: async () => ({
+              data: { tenantId: "tenant_test", horizonDays: 7, bundles: [], generatedAt: new Date().toISOString() }
+            })
+          });
+        }
         return Promise.resolve({
           ok: true,
           json: async () => ({
@@ -61,6 +69,10 @@ describe("App navigation", () => {
     fireEvent.click(screen.getByRole("link", { name: /^insights$/i }));
 
     expect(await screen.findByRole("heading", { name: /fleet insights/i })).toBeTruthy();
+
+    fireEvent.click(screen.getByRole("link", { name: /^predictions$/i }));
+
+    expect(await screen.findByRole("heading", { name: /^predictions$/i })).toBeTruthy();
 
     fireEvent.click(screen.getByRole("link", { name: /^map$/i }));
 

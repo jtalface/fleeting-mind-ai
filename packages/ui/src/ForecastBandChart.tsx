@@ -45,9 +45,9 @@ export function ForecastBandChart({ title, points, height = 240 }: ForecastBandC
             }}
           />
           <Legend wrapperStyle={{ fontSize: "11px", color: "var(--fm-color-text-muted)" }} />
-          <Line name="Upper" type="monotone" dataKey="upper" stroke="var(--fm-color-text-muted)" strokeDasharray="4 4" {...lineStyle} />
-          <Line name="Forecast" type="monotone" dataKey="value" stroke="var(--fm-color-accent)" {...lineStyle} />
-          <Line name="Lower" type="monotone" dataKey="lower" stroke="var(--fm-color-text-muted)" strokeDasharray="4 4" {...lineStyle} />
+          <Line name="P90" type="monotone" dataKey="upper" stroke="var(--fm-color-text-muted)" strokeDasharray="4 4" {...lineStyle} />
+          <Line name="P50" type="monotone" dataKey="value" stroke="var(--fm-color-accent)" {...lineStyle} />
+          <Line name="P10" type="monotone" dataKey="lower" stroke="var(--fm-color-text-muted)" strokeDasharray="4 4" {...lineStyle} />
         </ComposedChart>
       </ResponsiveContainer>
     </div>

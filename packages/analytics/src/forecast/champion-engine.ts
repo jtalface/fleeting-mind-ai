@@ -4,6 +4,7 @@ import {
   backtestCandidates,
   DEFAULT_SEASON_PERIOD,
   forecastWithAlgorithm,
+  holdoutResidualQuantileOffsets,
   holdoutResidualStdDev,
   selectChampion
 } from "./backtest.js";
@@ -57,16 +58,22 @@ export class ChampionForecastEngine implements ForecastEngine {
     const championMape = candidateScores.find((item) => item.algorithm === champion)?.mapePct;
     const predictedValues = forecastWithAlgorithm(champion, series, horizonDays);
     const residualStdDev = holdoutResidualStdDev(series, champion);
-    const band = residualStdDev * 1.96;
+    const { p10Offset, p90Offset } = holdoutResidualQuantileOffsets(series, champion);
 
     const predictedPoints = predictedValues.map((value, index) => {
-      const lower = round(value - band);
-      const upper = round(value + band);
+      const p50 = round(value);
+      const p10Raw = round(p50 + p10Offset);
+      const p90Raw = round(p50 + p90Offset);
+      const p10 = clampLowerBound(metricKey, p50, p10Raw);
+      const p90 = p90Raw < p10 ? p10 : p90Raw;
       return {
         date: buildFutureDate(asOf, index + 1),
-        value: round(value),
-        lowerBound: clampLowerBound(metricKey, value, lower),
-        upperBound: upper
+        p50,
+        p10,
+        p90,
+        value: p50,
+        lowerBound: p10,
+        upperBound: p90
       };
     });
 
