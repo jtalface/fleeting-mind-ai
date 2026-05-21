@@ -33,18 +33,33 @@ function scopeLabel(bundle: PredictionBundle): string {
   if (bundle.scopeType === "fleet") {
     return "Fleet-wide";
   }
+  if (bundle.scopeType === "vehicle") {
+    return bundle.scopeLabel ? `Vehicle: ${bundle.scopeLabel}` : `Vehicle: ${bundle.scopeKey.slice(0, 8)}…`;
+  }
   return `Segment: ${bundle.scopeKey}`;
 }
 
+function tableScopeLabel(row: { scopeType: PredictionBundle["scopeType"]; scopeKey: string; scopeLabel?: string }): string {
+  if (row.scopeType === "fleet") {
+    return "Fleet";
+  }
+  if (row.scopeType === "vehicle") {
+    return row.scopeLabel ? `Vehicle: ${row.scopeLabel}` : `Vehicle: ${row.scopeKey.slice(0, 8)}…`;
+  }
+  return row.scopeKey;
+}
+
 export function PredictionsPage({ cfg }: PredictionsPageProps): JSX.Element {
-  const [scopeType, setScopeType] = useState<"fleet" | "segment" | "all">("all");
+  const [scopeType, setScopeType] = useState<"fleet" | "segment" | "vehicle" | "all">("all");
   const [horizonDays, setHorizonDays] = useState(7);
+  const [topVehicles, setTopVehicles] = useState(5);
 
   const queryOptions = useMemo(
     () => ({
       horizonDays,
       ...(scopeType === "fleet" ? { scopeType: "fleet" as const, scopeKey: "fleet" } : {}),
-      ...(scopeType === "segment" ? { scopeType: "segment" as const } : {})
+      ...(scopeType === "segment" ? { scopeType: "segment" as const } : {}),
+      ...(scopeType === "vehicle" ? { scopeType: "vehicle" as const } : {})
     }),
     [scopeType, horizonDays]
   );
@@ -54,7 +69,8 @@ export function PredictionsPage({ cfg }: PredictionsPageProps): JSX.Element {
     () => ({
       limit: 15,
       ...(scopeType === "fleet" ? { scopeType: "fleet" as const, scopeKey: "fleet" } : {}),
-      ...(scopeType === "segment" ? { scopeType: "segment" as const } : {})
+      ...(scopeType === "segment" ? { scopeType: "segment" as const } : {}),
+      ...(scopeType === "vehicle" ? { scopeType: "vehicle" as const } : {})
     }),
     [scopeType]
   );
@@ -85,7 +101,7 @@ export function PredictionsPage({ cfg }: PredictionsPageProps): JSX.Element {
     setScoring(true);
     setScoreError(undefined);
     try {
-      await postPredictionsRefresh(cfg, { horizonDays, lookbackDays: 7 });
+      await postPredictionsRefresh(cfg, { horizonDays, lookbackDays: 7, topVehicles });
       await Promise.all([refresh(), refreshEvaluations(), loadTrustPanels()]);
     } catch (e) {
       setScoreError(
@@ -96,7 +112,7 @@ export function PredictionsPage({ cfg }: PredictionsPageProps): JSX.Element {
     } finally {
       setScoring(false);
     }
-  }, [cfg, horizonDays, refresh, refreshEvaluations, loadTrustPanels]);
+  }, [cfg, horizonDays, topVehicles, refresh, refreshEvaluations, loadTrustPanels]);
 
   const bundles = result?.bundles ?? [];
   const busy = loading || scoring;
@@ -160,7 +176,7 @@ export function PredictionsPage({ cfg }: PredictionsPageProps): JSX.Element {
           Scope
           <select
             value={scopeType}
-            onChange={(e) => setScopeType(e.target.value as "fleet" | "segment" | "all")}
+            onChange={(e) => setScopeType(e.target.value as "fleet" | "segment" | "vehicle" | "all")}
             style={{
               padding: "var(--fm-space-1) var(--fm-space-2)",
               borderRadius: "var(--fm-radius-sm)",
@@ -172,7 +188,27 @@ export function PredictionsPage({ cfg }: PredictionsPageProps): JSX.Element {
             <option value="all">All scopes</option>
             <option value="fleet">Fleet</option>
             <option value="segment">Segments</option>
+            <option value="vehicle">Vehicles (top N)</option>
           </select>
+        </label>
+        <label style={{ display: "flex", alignItems: "center", gap: "var(--fm-space-2)", fontSize: "0.9rem" }}>
+          Top vehicles
+          <input
+            type="number"
+            min={0}
+            max={50}
+            value={topVehicles}
+            onChange={(e) => setTopVehicles(Number(e.target.value))}
+            title="Top N vehicles by window revenue when scoring forecasts"
+            style={{
+              width: "4rem",
+              padding: "var(--fm-space-1) var(--fm-space-2)",
+              borderRadius: "var(--fm-radius-sm)",
+              border: "1px solid var(--fm-color-border)",
+              background: "var(--fm-color-surface)",
+              color: "var(--fm-color-text)"
+            }}
+          />
         </label>
         <label style={{ display: "flex", alignItems: "center", gap: "var(--fm-space-2)", fontSize: "0.9rem" }}>
           Horizon (days)
@@ -249,7 +285,7 @@ export function PredictionsPage({ cfg }: PredictionsPageProps): JSX.Element {
                 {forwardResult.entries.map((row: ForwardAccuracyEntry) => (
                   <tr key={row.id} style={{ borderTop: "1px solid var(--fm-color-border)" }}>
                     <td style={{ padding: "var(--fm-space-1)" }}>
-                      {row.scopeType === "fleet" ? "Fleet" : row.scopeKey}
+                      {tableScopeLabel(row)}
                     </td>
                     <td>{METRIC_LABELS[row.metricKey] ?? row.metricKey}</td>
                     <td>{row.trainedUntil.slice(0, 10)}</td>
@@ -288,7 +324,7 @@ export function PredictionsPage({ cfg }: PredictionsPageProps): JSX.Element {
                   {evalResult.evaluations.map((row: ForecastEvaluationEntry) => (
                     <tr key={row.id} style={{ borderTop: "1px solid var(--fm-color-border)" }}>
                       <td style={{ padding: "var(--fm-space-1)" }}>
-                        {row.scopeType === "fleet" ? "Fleet" : row.scopeKey}
+                        {tableScopeLabel(row)}
                       </td>
                       <td>{METRIC_LABELS[row.metricKey] ?? row.metricKey}</td>
                       <td>{row.algorithm.replace(/_/g, " ")}</td>
@@ -317,7 +353,7 @@ export function PredictionsPage({ cfg }: PredictionsPageProps): JSX.Element {
               return (
                 <Card
                   key={`${series.scopeType}-${series.scopeKey}-${series.metricKey}-${series.evaluationKind}`}
-                  title={`${series.scopeType === "fleet" ? "Fleet" : series.scopeKey} · ${METRIC_LABELS[series.metricKey] ?? series.metricKey} (${series.evaluationKind})`}
+                  title={`${tableScopeLabel(series)} · ${METRIC_LABELS[series.metricKey] ?? series.metricKey} (${series.evaluationKind})`}
                 >
                   <p style={{ margin: 0, fontSize: "0.85rem", color: "var(--fm-color-text-muted)" }}>
                     Latest MAPE <strong style={{ color: "var(--fm-color-text)" }}>{last?.mapePct.toFixed(1) ?? "—"}%</strong>

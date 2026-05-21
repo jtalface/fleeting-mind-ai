@@ -4,7 +4,7 @@ import type { ForecastEvaluationListResult } from "@fleetmind/shared/contracts/p
 export interface ListForecastEvaluationsQuery {
   limit?: number;
   metricKey?: string;
-  scopeType?: "fleet" | "segment";
+  scopeType?: "fleet" | "segment" | "vehicle";
   scopeKey?: string;
 }
 

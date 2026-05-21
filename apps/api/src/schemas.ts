@@ -59,7 +59,7 @@ export const integrationSyncBodySchema = z.object({
 export const predictionsListQuerySchema = z.object({
   horizonDays: z.coerce.number().int().min(1).max(90).default(7),
   lookbackDays: z.coerce.number().int().min(1).max(90).default(7),
-  scopeType: z.enum(["fleet", "segment"]).optional(),
+  scopeType: z.enum(["fleet", "segment", "vehicle"]).optional(),
   scopeKey: z.string().min(1).optional(),
   metricKey: z.string().min(1).optional(),
   includeHistory: z
@@ -71,7 +71,7 @@ export const predictionsListQuerySchema = z.object({
 export const predictionsEvaluationsQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(100).default(30),
   metricKey: z.string().min(1).optional(),
-  scopeType: z.enum(["fleet", "segment"]).optional(),
+  scopeType: z.enum(["fleet", "segment", "vehicle"]).optional(),
   scopeKey: z.string().min(1).optional()
 });
 
@@ -84,9 +84,16 @@ export const predictionsEvaluationTrendsQuerySchema = z.object({
   evaluationKind: z.enum(["holdout", "forward"]).optional()
 });
 
+const segmentScopeBodySchema = z.object({
+  scopeKey: z.string().min(1),
+  nameIncludes: z.string().min(1)
+});
+
 export const predictionsRefreshBodySchema = z.object({
   horizonDays: z.number().int().min(1).max(90).optional(),
-  lookbackDays: z.number().int().min(1).max(90).optional()
+  lookbackDays: z.number().int().min(1).max(90).optional(),
+  segmentScopes: z.array(segmentScopeBodySchema).optional(),
+  topVehicles: z.number().int().min(0).max(50).optional()
 });
 
 export const tenantRateCardUpsertBodySchema = z.object({

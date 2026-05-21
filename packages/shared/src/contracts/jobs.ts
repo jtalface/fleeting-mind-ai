@@ -49,7 +49,8 @@ export const forecastRefreshJobPayloadSchema = tenantScopedJobBaseSchema.extend(
   windowPreset: windowPresetSchema.default("explicit"),
   windowStart: z.string().optional(),
   windowEnd: z.string().optional(),
-  segmentScopes: z.array(segmentScopeSchema).optional()
+  segmentScopes: z.array(segmentScopeSchema).optional(),
+  topVehicles: z.number().int().min(0).max(50).optional()
 }).superRefine((value, ctx) => {
   if (value.windowPreset === "explicit") {
     if (!value.windowStart || !value.windowEnd) {

@@ -5,7 +5,7 @@ import { ApiClientError, getPredictionsEvaluations } from "../api/client.js";
 
 export function usePredictionsEvaluations(
   cfg: ApiClientConfig,
-  options: { limit?: number; scopeType?: "fleet" | "segment"; scopeKey?: string } = {}
+  options: { limit?: number; scopeType?: "fleet" | "segment" | "vehicle"; scopeKey?: string } = {}
 ): {
   result: ForecastEvaluationListResult | undefined;
   loading: boolean;

@@ -27,9 +27,10 @@ export interface AnalyticsEngineInput {
   asOf: TimestampIso;
 }
 
-/** Restricts daily history to vehicles whose identifiers match `nameIncludes`. */
+/** Restricts daily history to a segment needle or a single vehicle. */
 export interface HistorySegmentFilter {
-  nameIncludes: string;
+  nameIncludes?: string;
+  vehicleId?: string;
 }
 
 export interface InsightRule {

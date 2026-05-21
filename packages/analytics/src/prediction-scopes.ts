@@ -1,4 +1,5 @@
 import type { PredictionScopeType } from "@fleetmind/shared/contracts/predictions.js";
+import type { TopVehicleByRevenue } from "./top-vehicles-by-revenue.js";
 
 export interface SegmentPredictionScope {
   scopeKey: string;
@@ -9,20 +10,16 @@ export interface PredictionScopeDefinition {
   scopeType: PredictionScopeType;
   scopeKey: string;
   nameIncludes?: string;
+  vehicleId?: string;
+  /** Human-readable label for vehicle scopes (plate, external id, etc.). */
+  scopeLabel?: string;
 }
-
-/** Default segment scopes scored on each forecast refresh (Phase 1.5). */
-export const DEFAULT_SEGMENT_SCOPES: SegmentPredictionScope[] = [
-  { scopeKey: "Sweeper", nameIncludes: "Sweeper" }
-];
 
 export function fleetScope(): PredictionScopeDefinition {
   return { scopeType: "fleet", scopeKey: "fleet" };
 }
 
-export function segmentScopes(
-  segments: SegmentPredictionScope[] = DEFAULT_SEGMENT_SCOPES
-): PredictionScopeDefinition[] {
+export function segmentScopes(segments: SegmentPredictionScope[]): PredictionScopeDefinition[] {
   return segments.map((segment) => ({
     scopeType: "segment" as const,
     scopeKey: segment.scopeKey,
@@ -30,8 +27,20 @@ export function segmentScopes(
   }));
 }
 
-export function allPredictionScopes(
-  segments: SegmentPredictionScope[] = DEFAULT_SEGMENT_SCOPES
-): PredictionScopeDefinition[] {
-  return [fleetScope(), ...segmentScopes(segments)];
+export function vehicleScopes(vehicles: TopVehicleByRevenue[]): PredictionScopeDefinition[] {
+  return vehicles.map((vehicle) => ({
+    scopeType: "vehicle" as const,
+    scopeKey: vehicle.vehicleId,
+    vehicleId: vehicle.vehicleId,
+    scopeLabel: vehicle.label
+  }));
+}
+
+export function allPredictionScopes(options: {
+  segmentScopes?: SegmentPredictionScope[];
+  topVehicles?: TopVehicleByRevenue[];
+}): PredictionScopeDefinition[] {
+  const segments = options.segmentScopes ?? [];
+  const vehicles = options.topVehicles ?? [];
+  return [fleetScope(), ...segmentScopes(segments), ...vehicleScopes(vehicles)];
 }

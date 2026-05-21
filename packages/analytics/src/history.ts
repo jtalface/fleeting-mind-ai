@@ -58,15 +58,16 @@ export async function buildDailyHistoryFromRepositories(
   }
 
   const { repositories, window } = input;
+  const vehicleId = segmentFilter?.vehicleId;
 
-  if (repositories.fleetMetricDaily) {
+  if (repositories.fleetMetricDaily && !vehicleId) {
     const fromMart = await repositories.fleetMetricDaily.listAggregatedByDay(window);
     if (fromMart.length >= MIN_SERIES_FOR_BACKTEST) {
       return aggregateMartToHistory(fromMart, maxDays);
     }
   }
 
-  const rows = await rebuildDailyMart(input);
+  const rows = (await rebuildDailyMart(input)).filter((row) => !vehicleId || row.vehicleId === vehicleId);
   if (rows.length === 0) {
     return tripHistory;
   }
@@ -102,10 +103,12 @@ async function buildHistoryFromRawTrips(
     repositories.vehicles.list(),
     resolveTenantRateCard(repositories, input.tenantId)
   ]);
-  const vehicles =
-    segmentFilter?.nameIncludes !== undefined
-      ? filterVehiclesByNameNeedle(allVehicles, segmentFilter.nameIncludes)
-      : allVehicles;
+  let vehicles = allVehicles;
+  if (segmentFilter?.vehicleId) {
+    vehicles = allVehicles.filter((vehicle) => vehicle.id === segmentFilter.vehicleId);
+  } else if (segmentFilter?.nameIncludes !== undefined) {
+    vehicles = filterVehiclesByNameNeedle(allVehicles, segmentFilter.nameIncludes);
+  }
 
   const [allTrips, telemetryPoints] = await Promise.all([
     Promise.all(vehicles.map((vehicle) => repositories.trips.listByVehicle(vehicle.id))).then((rows) =>

@@ -59,7 +59,8 @@ export async function registerScheduledJobs(queues: FleetMindQueues, env: Worker
         tenantId,
         ...windowPayload,
         asOf: new Date().toISOString(),
-        horizonDays: env.scheduledForecastHorizonDays
+        horizonDays: env.scheduledForecastHorizonDays,
+        topVehicles: env.scheduledForecastTopVehicles
       },
       {
         repeat: { pattern: env.cronForecastRefresh },

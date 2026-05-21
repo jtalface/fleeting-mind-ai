@@ -7,15 +7,17 @@ import { enrichPredictionBundles } from "./prediction-history.js";
 import { persistForecastEvaluations } from "./persist-forecast-evaluations.js";
 import { scoreForwardAccuracyForRuns } from "./forward-accuracy.js";
 import { persistPredictionBatches } from "./persist-predictions.js";
-import { DEFAULT_SEGMENT_SCOPES, type SegmentPredictionScope } from "./prediction-scopes.js";
+import { resolveSegmentScopes, resolveTopVehicles } from "./prediction-config.js";
+import type { SegmentPredictionScope } from "./prediction-scopes.js";
 import { runBatchPredictions } from "./run-batch-predictions.js";
 
 export interface RefreshCachedPredictionsOptions {
   horizonDays: number;
   segmentScopes?: SegmentPredictionScope[];
+  topVehicles?: number;
 }
 
-/** Rebuild mart, score fleet + segment forecasts, persist runs, return latest cache. */
+/** Rebuild mart, score fleet + segment + vehicle forecasts, persist runs, return latest cache. */
 export async function refreshCachedPredictions(
   input: AnalyticsEngineInput,
   analytics: AnalyticsService,
@@ -26,9 +28,9 @@ export async function refreshCachedPredictions(
   await rebuildDailyMart(input);
   const batches = await runBatchPredictions(input, analytics, {
     horizonDays: options.horizonDays,
-    segmentScopes: options.segmentScopes ?? DEFAULT_SEGMENT_SCOPES
+    segmentScopes: resolveSegmentScopes(options.segmentScopes),
+    topVehicles: resolveTopVehicles(options.topVehicles)
   });
-  const allForecasts = batches.flatMap((batch) => batch.forecasts);
   await persistForecastEvaluations(repositories, batches, input);
   await persistPredictionBatches(repositories, batches);
 

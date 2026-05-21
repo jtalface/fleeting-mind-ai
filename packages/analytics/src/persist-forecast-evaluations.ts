@@ -11,6 +11,7 @@ import {
 } from "./forecast/backtest.js";
 import { ChampionForecastEngine } from "./forecast/champion-engine.js";
 import { buildDailyHistoryFromRepositories } from "./history.js";
+import { historyFilterForScope, scopeHistoryCacheKey } from "./prediction-scope-filter.js";
 import { metricValueFromHistoryPoint } from "./prediction-history.js";
 import type { AnalyticsEngineInput } from "./contracts.js";
 import type { ScopedForecastBatch } from "./run-batch-predictions.js";
@@ -79,14 +80,10 @@ export async function persistForecastEvaluations(
   const scopeHistory = new Map<string, Awaited<ReturnType<typeof buildDailyHistoryFromRepositories>>>();
 
   for (const batch of batches) {
-    const cacheKey = `${batch.scope.scopeType}:${batch.scope.scopeKey}:${batch.scope.nameIncludes ?? ""}`;
+    const cacheKey = scopeHistoryCacheKey(batch.scope);
     let history = scopeHistory.get(cacheKey);
     if (!history && input) {
-      const segmentFilter =
-        batch.scope.scopeType === "segment" && batch.scope.nameIncludes
-          ? { nameIncludes: batch.scope.nameIncludes }
-          : undefined;
-      history = await buildDailyHistoryFromRepositories(input, 90, segmentFilter);
+      history = await buildDailyHistoryFromRepositories(input, 90, historyFilterForScope(batch.scope));
       scopeHistory.set(cacheKey, history);
     }
 

@@ -67,6 +67,10 @@ export interface ApiPredictionsRefreshRequest {
   horizonDays?: number;
   /** Days of history used to train forecasts (default 7). */
   lookbackDays?: number;
+  /** Segment scopes; when omitted, uses FORECAST_SEGMENT_SCOPES env (default none). */
+  segmentScopes?: Array<{ scopeKey: string; nameIncludes: string }>;
+  /** Forecast top N vehicles by window revenue (default 5; 0 disables). */
+  topVehicles?: number;
 }
 
 export interface ApiPredictionsRefreshResponse {

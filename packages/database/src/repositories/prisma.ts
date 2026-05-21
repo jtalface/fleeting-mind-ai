@@ -280,7 +280,7 @@ type PredictionRunDelegate = {
   deleteMany(args: {
     where: {
       tenantId: string;
-      scopeType?: "fleet" | "segment";
+      scopeType?: "fleet" | "segment" | "vehicle";
       scopeKey?: string;
       metricKey?: string;
       horizonDays?: number;
@@ -289,7 +289,7 @@ type PredictionRunDelegate = {
   create(args: {
     data: {
       tenantId: string;
-      scopeType: "fleet" | "segment";
+      scopeType: "fleet" | "segment" | "vehicle";
       scopeKey: string;
       nameIncludes: string | null;
       metricKey: string;
@@ -315,7 +315,7 @@ type PredictionRunDelegate = {
     where: {
       tenantId: string;
       horizonDays: number;
-      scopeType?: "fleet" | "segment";
+      scopeType?: "fleet" | "segment" | "vehicle";
       scopeKey?: string;
       metricKey?: string;
     };

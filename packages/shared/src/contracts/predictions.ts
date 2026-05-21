@@ -1,7 +1,7 @@
 import type { DeterministicForecast, ForecastAlgorithm, ForecastExplanation, ForecastPoint } from "./analytics.js";
 import type { TenantId, TimestampIso } from "./domain.js";
 
-export type PredictionScopeType = "fleet" | "segment";
+export type PredictionScopeType = "fleet" | "segment" | "vehicle";
 
 export interface PredictionHistoryPoint {
   date: string;
@@ -11,9 +11,11 @@ export interface PredictionHistoryPoint {
 export interface PredictionBundle {
   tenantId: TenantId;
   scopeType: PredictionScopeType;
-  /** `fleet` for fleet-wide; segment needle (e.g. `Sweeper`) for segment scope. */
+  /** `fleet` for fleet-wide; segment label for segment scope; vehicle id for vehicle scope. */
   scopeKey: string;
   nameIncludes?: string;
+  /** Display label for vehicle scopes (plate, external id, etc.). */
+  scopeLabel?: string;
   metricKey: DeterministicForecast["metricKey"];
   trainedUntil: TimestampIso;
   horizonDays: number;

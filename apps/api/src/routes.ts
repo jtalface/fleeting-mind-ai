@@ -275,7 +275,11 @@ export function buildRoutes(runtime: ApiRuntime): Router {
         engineInput,
         tenantRuntime.analyticsService,
         tenantRuntime.repositories,
-        { horizonDays },
+        {
+          horizonDays,
+          ...(body.segmentScopes ? { segmentScopes: body.segmentScopes } : {}),
+          ...(body.topVehicles !== undefined ? { topVehicles: body.topVehicles } : {})
+        },
         asOf
       );
 

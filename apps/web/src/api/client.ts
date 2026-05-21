@@ -115,7 +115,7 @@ export async function getFleetLocations(
 export interface GetPredictionsQuery {
   horizonDays?: number;
   lookbackDays?: number;
-  scopeType?: "fleet" | "segment";
+  scopeType?: "fleet" | "segment" | "vehicle";
   scopeKey?: string;
   metricKey?: string;
 }
@@ -245,7 +245,7 @@ export async function getPredictionsEvaluationTrends(
 
 export async function getPredictionsEvaluations(
   cfg: ApiClientConfig,
-  query: { limit?: number; metricKey?: string; scopeType?: "fleet" | "segment"; scopeKey?: string } = {}
+  query: { limit?: number; metricKey?: string; scopeType?: "fleet" | "segment" | "vehicle"; scopeKey?: string } = {}
 ): Promise<ForecastEvaluationListResult> {
   const fetchFn = cfg.fetchImpl ?? fetch;
   const params = new URLSearchParams();

@@ -2,6 +2,7 @@ import type { DeterministicForecast } from "@fleetmind/shared/contracts/analytic
 import type { PredictionBundle, PredictionHistoryPoint } from "@fleetmind/shared/contracts/predictions.js";
 import type { AnalyticsDataPoint, AnalyticsEngineInput } from "./contracts.js";
 import { buildDailyHistoryFromRepositories } from "./history.js";
+import { historyFilterForBundle, scopeHistoryCacheKey } from "./prediction-scope-filter.js";
 import type { PredictionScopeDefinition } from "./prediction-scopes.js";
 
 export function metricValueFromHistoryPoint(
@@ -50,14 +51,10 @@ export async function enrichPredictionBundles(
 
   return Promise.all(
     bundles.map(async (bundle) => {
-      const cacheKey = `${bundle.scopeType}:${bundle.scopeKey}:${bundle.nameIncludes ?? ""}`;
+      const cacheKey = scopeHistoryCacheKey(bundle);
       let history = scopeHistory.get(cacheKey);
       if (!history) {
-        const segmentFilter =
-          bundle.scopeType === "segment" && bundle.nameIncludes
-            ? { nameIncludes: bundle.nameIncludes }
-            : undefined;
-        history = await buildDailyHistoryFromRepositories(input, 90, segmentFilter);
+        history = await buildDailyHistoryFromRepositories(input, 90, historyFilterForBundle(bundle));
         scopeHistory.set(cacheKey, history);
       }
 
@@ -73,6 +70,8 @@ export function scopeFromBundle(bundle: PredictionBundle): PredictionScopeDefini
   return {
     scopeType: bundle.scopeType,
     scopeKey: bundle.scopeKey,
-    ...(bundle.nameIncludes ? { nameIncludes: bundle.nameIncludes } : {})
+    ...(bundle.nameIncludes ? { nameIncludes: bundle.nameIncludes } : {}),
+    ...(bundle.scopeType === "vehicle" ? { vehicleId: bundle.scopeKey } : {}),
+    ...(bundle.scopeLabel ? { scopeLabel: bundle.scopeLabel } : {})
   };
 }

@@ -15,6 +15,9 @@ export interface WorkerEnv {
   cronDeepBackfill: string;
   deepBackfillLookbackDays: number;
   deepBackfillDeviceNameIncludes?: string;
+  /** JSON array of { scopeKey, nameIncludes } for scheduled forecast refresh. */
+  forecastSegmentScopes?: string;
+  scheduledForecastTopVehicles: number;
 }
 
 const splitCsv = (value: string | undefined): string[] =>
@@ -44,6 +47,13 @@ export function loadWorkerEnv(env: NodeJS.ProcessEnv = process.env): WorkerEnv {
     deepBackfillLookbackDays: Math.min(90, Math.max(7, Number(env.WORKER_DEEP_BACKFILL_LOOKBACK_DAYS ?? "30") || 30)),
     ...(env.WORKER_DEEP_BACKFILL_DEVICE_INCLUDES?.trim()
       ? { deepBackfillDeviceNameIncludes: env.WORKER_DEEP_BACKFILL_DEVICE_INCLUDES.trim() }
-      : { deepBackfillDeviceNameIncludes: "Sweeper" })
+      : { deepBackfillDeviceNameIncludes: "Sweeper" }),
+    ...(env.WORKER_FORECAST_SEGMENT_SCOPES?.trim()
+      ? { forecastSegmentScopes: env.WORKER_FORECAST_SEGMENT_SCOPES.trim() }
+      : {}),
+    scheduledForecastTopVehicles: Math.min(
+      50,
+      Math.max(0, Number(env.WORKER_FORECAST_TOP_VEHICLES ?? "5") || 5)
+    )
   };
 }

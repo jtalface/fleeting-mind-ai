@@ -7,6 +7,7 @@ import type {
 import { ChampionForecastEngine } from "./forecast/champion-engine.js";
 import type { AnalyticsEngineInput } from "./contracts.js";
 import { buildDailyHistoryFromRepositories } from "./history.js";
+import { historyFilterForRun, scopeHistoryCacheKeyForRun } from "./prediction-scope-filter.js";
 import { metricValueFromHistoryPoint } from "./prediction-history.js";
 import { upsertForecastEvaluation } from "./persist-forecast-evaluations.js";
 
@@ -70,12 +71,10 @@ export async function scoreForwardAccuracyForRuns(
   let scored = 0;
 
   for (const run of runs) {
-    const cacheKey = `${run.scopeType}:${run.scopeKey}:${run.nameIncludes ?? ""}`;
+    const cacheKey = scopeHistoryCacheKeyForRun(run);
     let history = historyCache.get(cacheKey);
     if (!history) {
-      const segmentFilter =
-        run.scopeType === "segment" && run.nameIncludes ? { nameIncludes: run.nameIncludes } : undefined;
-      history = await buildDailyHistoryFromRepositories(input, 120, segmentFilter);
+      history = await buildDailyHistoryFromRepositories(input, 120, historyFilterForRun(run));
       historyCache.set(cacheKey, history);
     }
 

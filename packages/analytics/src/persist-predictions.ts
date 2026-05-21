@@ -18,7 +18,11 @@ function toRunRecord(
     tenantId: forecast.tenantId,
     scopeType: scope.scopeType as PredictionScopeType,
     scopeKey: scope.scopeKey,
-    ...(scope.nameIncludes ? { nameIncludes: scope.nameIncludes } : {}),
+    ...(scope.scopeType === "vehicle" && scope.scopeLabel
+      ? { nameIncludes: scope.scopeLabel }
+      : scope.nameIncludes
+        ? { nameIncludes: scope.nameIncludes }
+        : {}),
     metricKey: forecast.metricKey,
     algorithm: explanation.algorithm,
     trainedUntil: forecast.trainedUntil,
@@ -64,7 +68,8 @@ export function bundlesFromRuns(
     tenantId: run.tenantId,
     scopeType: run.scopeType,
     scopeKey: run.scopeKey,
-    ...(run.nameIncludes ? { nameIncludes: run.nameIncludes } : {}),
+    ...(run.scopeType === "vehicle" && run.nameIncludes ? { scopeLabel: run.nameIncludes } : {}),
+    ...(run.scopeType === "segment" && run.nameIncludes ? { nameIncludes: run.nameIncludes } : {}),
     metricKey: run.metricKey as DeterministicForecast["metricKey"],
     trainedUntil: run.trainedUntil,
     horizonDays: run.horizonDays,

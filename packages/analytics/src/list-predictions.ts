@@ -6,7 +6,7 @@ import { enrichPredictionBundles } from "./prediction-history.js";
 
 export interface ListPredictionsQuery {
   horizonDays: number;
-  scopeType?: "fleet" | "segment";
+  scopeType?: "fleet" | "segment" | "vehicle";
   scopeKey?: string;
   metricKey?: string;
 }

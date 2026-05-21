@@ -37,9 +37,11 @@ export async function processForecastRefresh(
   const { runBatchPredictions } = await import("@fleetmind/analytics/run-batch-predictions.js");
 
   await rebuildDailyMart(input);
+  const { resolveSegmentScopes, resolveTopVehicles } = await import("@fleetmind/analytics/prediction-config.js");
   const batches = await runBatchPredictions(input, runtime.analytics, {
     horizonDays: payload.horizonDays,
-    ...(payload.segmentScopes ? { segmentScopes: payload.segmentScopes } : {})
+    segmentScopes: resolveSegmentScopes(payload.segmentScopes),
+    topVehicles: resolveTopVehicles(payload.topVehicles)
   });
   await persistForecastEvaluations(repositories, batches, input);
   await persistPredictionBatches(repositories, batches);

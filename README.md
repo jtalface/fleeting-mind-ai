@@ -74,6 +74,27 @@ Pipeline order every 6h (default): Flespi incremental sync → batch analytics �
 - Insights and Predictions show a **KPIs vs forecasts** callout (window totals vs daily P50 medians).
 - API: `GET/PUT /v1/tenant/rate-card`, `GET/POST /v1/tenant/billing-contracts`, `POST /v1/tenant/billing-contracts/:id/activate`.
 
+**Phase 3 — richer forecasting**
+
+- **Per-vehicle** predictions for the top N vehicles by window revenue (default 5).
+- **Configurable segment scopes** via env or refresh body — no hardcoded Sweeper default.
+- Scopes on each refresh: fleet + segments + top vehicles.
+
+```env
+# JSON array of { "scopeKey", "nameIncludes" } — example:
+FORECAST_SEGMENT_SCOPES=[{"scopeKey":"Sweeper","nameIncludes":"Sweeper"}]
+FORECAST_TOP_VEHICLES=5
+WORKER_FORECAST_SEGMENT_SCOPES=[{"scopeKey":"Sweeper","nameIncludes":"Sweeper"}]
+WORKER_FORECAST_TOP_VEHICLES=5
+```
+
+```bash
+curl -X POST http://localhost:4000/v1/predictions/refresh \
+  -H "x-tenant-id: tenant_demo" -H "x-user-id: user_local" \
+  -H "Content-Type: application/json" \
+  -d '{"horizonDays":7,"lookbackDays":7,"topVehicles":5,"segmentScopes":[{"scopeKey":"Sweeper","nameIncludes":"Sweeper"}]}'
+```
+
 ### Prune pre-LLM insights (optional)
 
 When `OPENAI_API_KEY` is set, analytics refresh drops legacy rule-based rows (`insight_idle_*`, `insight_fleet_*`, `insight_fuel_*`) from the DB and from API responses. To clean up without opening Insights:
@@ -87,3 +108,4 @@ curl -X POST http://localhost:4000/v1/insights/prune-legacy \
 
 - `docs/architecture.md`: architecture blueprint, contracts, boundaries, and dependency graph.
 - `docs/agent-prompts.md`: isolated implementation prompts for specialist agents A-H.
+- `docs/forecasting-roadmap.md`: Phase 4a (data), 4b (features/ML), 4c (scenarios) backlog after Phase 3; includes what **mart** means in this repo.

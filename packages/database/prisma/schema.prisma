@@ -204,6 +204,7 @@ model ForecastEvaluation {
 enum PredictionScopeType {
   fleet
   segment
+  vehicle
 }
 
 model PredictionRun {

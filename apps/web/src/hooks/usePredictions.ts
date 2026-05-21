@@ -5,7 +5,7 @@ import { ApiClientError, getPredictions } from "../api/client.js";
 
 export interface UsePredictionsOptions {
   horizonDays?: number;
-  scopeType?: "fleet" | "segment";
+  scopeType?: "fleet" | "segment" | "vehicle";
   scopeKey?: string;
 }
 
