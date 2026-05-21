@@ -133,8 +133,28 @@ model TenantRateCard {
   operatingCostPerKm Float    @default(0.6)
   currency           String   @default("USD")
   effectiveFrom      DateTime @default(now())
+  sourceContractId   String?
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
+}
+
+/// Job or municipal contract rates; activating one syncs {@link TenantRateCard}.
+model TenantBillingContract {
+  id                 String   @id @default(cuid())
+  tenantId           String
+  name               String
+  externalJobId      String?
+  revenuePerKm       Float
+  operatingCostPerKm Float
+  currency           String   @default("USD")
+  isActive           Boolean  @default(false)
+  effectiveFrom      DateTime @default(now())
+  notes              String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  @@index([tenantId, isActive])
+  @@index([tenantId, createdAt])
 }
 
 model FleetMetricDaily {

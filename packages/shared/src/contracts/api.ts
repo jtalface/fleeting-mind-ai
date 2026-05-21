@@ -1,3 +1,4 @@
+import type { BillingContractListResult, CreateBillingContractInput, TenantBillingContract } from "./billing-contracts.js";
 import type { AnalyticsReport } from "./analytics.js";
 import type { IntegrationSyncResult } from "./integrations.js";
 import type { CopilotResponse } from "./ai.js";
@@ -77,6 +78,7 @@ export interface TenantRateCardDto {
   revenuePerKm: number;
   operatingCostPerKm: number;
   currency: string;
+  sourceContractId?: string;
 }
 
 export interface ApiTenantRateCardResponse {
@@ -87,6 +89,23 @@ export interface ApiTenantRateCardUpsertRequest {
   revenuePerKm: number;
   operatingCostPerKm: number;
   currency?: string;
+}
+
+export interface ApiBillingContractsListResponse {
+  data: BillingContractListResult;
+}
+
+export interface ApiBillingContractCreateRequest extends CreateBillingContractInput {}
+
+export interface ApiBillingContractCreateResponse {
+  data: TenantBillingContract;
+}
+
+export interface ApiBillingContractActivateResponse {
+  data: {
+    contract: TenantBillingContract;
+    rateCard: TenantRateCardDto;
+  };
 }
 
 export interface FleetVehicleLocationDto {

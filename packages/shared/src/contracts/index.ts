@@ -3,6 +3,8 @@ export * from "./ai.js";
 export * from "./telemetry.js";
 export * from "./analytics.js";
 export * from "./predictions.js";
+export * from "./billing-contracts.js";
+export * from "../finance-metrics.js";
 export * from "./api.js";
 export * from "./jobs.js";
 export * from "./integrations.js";

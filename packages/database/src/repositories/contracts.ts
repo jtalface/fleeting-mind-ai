@@ -94,12 +94,46 @@ export interface TenantRateCardRecord {
   revenuePerKm: number;
   operatingCostPerKm: number;
   currency: string;
+  sourceContractId?: string;
+}
+
+export interface BillingContractRecord {
+  id: string;
+  tenantId: string;
+  name: string;
+  externalJobId?: string;
+  revenuePerKm: number;
+  operatingCostPerKm: number;
+  currency: string;
+  isActive: boolean;
+  effectiveFrom: string;
+  notes?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateBillingContractRecordInput {
+  name: string;
+  externalJobId?: string;
+  revenuePerKm: number;
+  operatingCostPerKm: number;
+  currency?: string;
+  notes?: string;
+}
+
+export interface BillingContractRepository {
+  list(): Promise<BillingContractRecord[]>;
+  create(input: CreateBillingContractRecordInput): Promise<BillingContractRecord>;
+  activate(contractId: string): Promise<BillingContractRecord | null>;
+  getActive(): Promise<BillingContractRecord | null>;
 }
 
 export interface UpsertTenantRateCardInput {
   revenuePerKm: number;
   operatingCostPerKm: number;
   currency?: string;
+  /** When set from an activated billing contract. Pass `null` to clear on manual override. */
+  sourceContractId?: string | null;
 }
 
 export interface RateCardRepository {
@@ -232,6 +266,7 @@ export interface TenantRepositorySet {
   conversations: ConversationRepository;
   integrationSync?: IntegrationSyncStateRepository;
   rateCards?: RateCardRepository;
+  billingContracts?: BillingContractRepository;
   fleetMetricDaily?: FleetMetricDailyRepository;
   forecastEvaluations?: ForecastEvaluationRepository;
   predictionRuns?: PredictionRunRepository;

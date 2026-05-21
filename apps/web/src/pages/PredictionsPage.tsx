@@ -8,6 +8,7 @@ import { Card, ForecastBandChart, PageHeader } from "@fleetmind/ui";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { ApiClientConfig } from "../api/client.js";
 import { ApiClientError, postPredictionsRefresh } from "../api/client.js";
+import { FinanceMetricsCallout } from "../components/FinanceMetricsCallout.js";
 import { usePredictions } from "../hooks/usePredictions.js";
 import { usePredictionsEvaluations } from "../hooks/usePredictionsEvaluations.js";
 import {
@@ -143,6 +144,8 @@ export function PredictionsPage({ cfg }: PredictionsPageProps): JSX.Element {
           </div>
         }
       />
+
+      <FinanceMetricsCallout />
 
       <div
         style={{

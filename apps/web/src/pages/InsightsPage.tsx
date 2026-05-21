@@ -2,6 +2,7 @@ import type { DeterministicForecast, Insight, MetricValue } from "@fleetmind/sha
 import { Card, FleetMetricBars, ForecastBandChart, InsightCard, KpiStat, PageHeader } from "@fleetmind/ui";
 import { useMemo } from "react";
 import type { ApiClientConfig } from "../api/client.js";
+import { FinanceMetricsCallout } from "../components/FinanceMetricsCallout.js";
 import { useAnalyticsReport } from "../hooks/useAnalyticsReport.js";
 
 function rollingWeekWindow(): { start: string; end: string } {
@@ -51,6 +52,8 @@ export function InsightsPage({ cfg }: InsightsPageProps): JSX.Element {
           {error.message} ({error.code})
         </p>
       ) : null}
+
+      <FinanceMetricsCallout />
 
       <section style={{ marginBottom: "var(--fm-space-5)" }}>
         <h2 style={{ fontSize: "1rem", margin: "0 0 var(--fm-space-3)", color: "var(--fm-color-text-muted)" }}>Fleet KPIs</h2>

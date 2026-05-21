@@ -26,6 +26,8 @@ import type {
   ListLatestPredictionRunsQuery,
   PredictionRunRecord,
   PredictionRunStored,
+  BillingContractRecord,
+  CreateBillingContractRecordInput,
   TenantRateCardRecord,
   TenantRepositorySet,
   UpsertTenantRateCardInput,
@@ -46,6 +48,7 @@ export class InMemoryTenantRepositories implements TenantRepositorySet {
   private readonly messagesStore: ConversationMessage[] = [];
   private readonly syncStateStore = new Map<string, IntegrationSyncStateRecord>();
   private rateCard: TenantRateCardRecord;
+  private readonly billingContractsStore: BillingContractRecord[] = [];
   private readonly martStore: FleetMetricDailyRow[] = [];
   private readonly forecastEvalStore: ForecastEvaluationStored[] = [];
 
@@ -235,14 +238,65 @@ export class InMemoryTenantRepositories implements TenantRepositorySet {
   public readonly rateCards = {
     get: async (): Promise<TenantRateCardRecord> => this.rateCard,
     upsert: async (input: UpsertTenantRateCardInput): Promise<TenantRateCardRecord> => {
+      const sourceContractId =
+        input.sourceContractId === null
+          ? undefined
+          : input.sourceContractId ?? this.rateCard.sourceContractId;
       this.rateCard = {
         tenantId: this.tenantId,
         revenuePerKm: input.revenuePerKm,
         operatingCostPerKm: input.operatingCostPerKm,
-        currency: input.currency ?? "USD"
+        currency: input.currency ?? "USD",
+        ...(sourceContractId ? { sourceContractId } : {})
       };
       return this.rateCard;
     }
+  };
+
+  public readonly billingContracts = {
+    list: async (): Promise<BillingContractRecord[]> =>
+      [...this.billingContractsStore]
+        .filter((c) => c.tenantId === this.tenantId)
+        .sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
+    create: async (input: CreateBillingContractRecordInput): Promise<BillingContractRecord> => {
+      const now = nowIso();
+      const record: BillingContractRecord = {
+        id: randomId("contract"),
+        tenantId: this.tenantId,
+        name: input.name,
+        ...(input.externalJobId ? { externalJobId: input.externalJobId } : {}),
+        revenuePerKm: input.revenuePerKm,
+        operatingCostPerKm: input.operatingCostPerKm,
+        currency: input.currency ?? "USD",
+        isActive: false,
+        effectiveFrom: now,
+        ...(input.notes ? { notes: input.notes } : {}),
+        createdAt: now,
+        updatedAt: now
+      };
+      this.billingContractsStore.push(record);
+      return record;
+    },
+    activate: async (contractId: string): Promise<BillingContractRecord | null> => {
+      const target = this.billingContractsStore.find(
+        (c) => c.tenantId === this.tenantId && c.id === contractId
+      );
+      if (!target) {
+        return null;
+      }
+      for (const c of this.billingContractsStore) {
+        if (c.tenantId === this.tenantId) {
+          c.isActive = c.id === contractId;
+          if (c.id === contractId) {
+            c.effectiveFrom = nowIso();
+            c.updatedAt = c.effectiveFrom;
+          }
+        }
+      }
+      return target;
+    },
+    getActive: async (): Promise<BillingContractRecord | null> =>
+      this.billingContractsStore.find((c) => c.tenantId === this.tenantId && c.isActive) ?? null
   };
 
   public readonly fleetMetricDaily = {

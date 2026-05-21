@@ -5,6 +5,7 @@ import { AppShell } from "./layout/AppShell.js";
 import { ChatPage } from "./pages/ChatPage.js";
 import { FleetMapPage } from "./pages/FleetMapPage.js";
 import { InsightsPage } from "./pages/InsightsPage.js";
+import { FinanceSettingsPage } from "./pages/FinanceSettingsPage.js";
 import { PredictionsPage } from "./pages/PredictionsPage.js";
 
 export function App(): JSX.Element {
@@ -18,6 +19,7 @@ export function App(): JSX.Element {
         <Route path="/insights" element={<InsightsPage cfg={cfg} />} />
         <Route path="/map" element={<FleetMapPage cfg={cfg} />} />
         <Route path="/predictions" element={<PredictionsPage cfg={cfg} />} />
+        <Route path="/settings" element={<FinanceSettingsPage cfg={cfg} />} />
       </Route>
     </Routes>
   );

@@ -94,3 +94,12 @@ export const tenantRateCardUpsertBodySchema = z.object({
   operatingCostPerKm: z.number().nonnegative(),
   currency: z.string().min(3).max(3).optional()
 });
+
+export const billingContractCreateBodySchema = z.object({
+  name: z.string().min(1).max(200),
+  externalJobId: z.string().min(1).max(120).optional(),
+  revenuePerKm: z.number().positive(),
+  operatingCostPerKm: z.number().nonnegative(),
+  currency: z.string().min(3).max(3).optional(),
+  notes: z.string().max(500).optional()
+});

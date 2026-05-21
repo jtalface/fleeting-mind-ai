@@ -14,9 +14,15 @@ import type {
   ApiPredictionsRefreshRequest,
   ApiPredictionsRefreshResponse,
   ForecastEvaluationListResult,
+  ApiBillingContractActivateResponse,
+  ApiBillingContractCreateRequest,
+  ApiBillingContractCreateResponse,
+  ApiBillingContractsListResponse,
   ApiTenantRateCardResponse,
   ApiTenantRateCardUpsertRequest,
-  PredictionsListResult
+  BillingContractListResult,
+  PredictionsListResult,
+  TenantBillingContract
 } from "@fleetmind/shared";
 
 export interface ApiClientConfig {
@@ -276,6 +282,67 @@ export async function getTenantRateCard(cfg: ApiClientConfig): Promise<ApiTenant
   const url = `${cfg.baseUrl.replace(/\/$/, "")}/v1/tenant/rate-card`;
   const res = await fetchFn(url, { method: "GET", headers: buildHeaders(cfg) });
   const payload = await parseJson<ApiTenantRateCardResponse | ApiErrorEnvelope>(res);
+  if (!res.ok || "error" in payload) {
+    const err = "error" in payload ? payload.error : { code: "UNKNOWN", message: res.statusText, requestId: "" };
+    throw new ApiClientError(err.message, {
+      code: err.code,
+      requestId: err.requestId,
+      status: res.status,
+      details: "details" in err ? err.details : undefined
+    });
+  }
+  return payload.data;
+}
+
+export async function getBillingContracts(cfg: ApiClientConfig): Promise<BillingContractListResult> {
+  const fetchFn = cfg.fetchImpl ?? fetch;
+  const url = `${cfg.baseUrl.replace(/\/$/, "")}/v1/tenant/billing-contracts`;
+  const res = await fetchFn(url, { method: "GET", headers: buildHeaders(cfg) });
+  const payload = await parseJson<ApiBillingContractsListResponse | ApiErrorEnvelope>(res);
+  if (!res.ok || "error" in payload) {
+    const err = "error" in payload ? payload.error : { code: "UNKNOWN", message: res.statusText, requestId: "" };
+    throw new ApiClientError(err.message, {
+      code: err.code,
+      requestId: err.requestId,
+      status: res.status,
+      details: "details" in err ? err.details : undefined
+    });
+  }
+  return payload.data;
+}
+
+export async function createBillingContract(
+  cfg: ApiClientConfig,
+  body: ApiBillingContractCreateRequest
+): Promise<TenantBillingContract> {
+  const fetchFn = cfg.fetchImpl ?? fetch;
+  const url = `${cfg.baseUrl.replace(/\/$/, "")}/v1/tenant/billing-contracts`;
+  const res = await fetchFn(url, {
+    method: "POST",
+    headers: buildHeaders(cfg),
+    body: JSON.stringify(body)
+  });
+  const payload = await parseJson<ApiBillingContractCreateResponse | ApiErrorEnvelope>(res);
+  if (!res.ok || "error" in payload) {
+    const err = "error" in payload ? payload.error : { code: "UNKNOWN", message: res.statusText, requestId: "" };
+    throw new ApiClientError(err.message, {
+      code: err.code,
+      requestId: err.requestId,
+      status: res.status,
+      details: "details" in err ? err.details : undefined
+    });
+  }
+  return payload.data;
+}
+
+export async function activateBillingContract(
+  cfg: ApiClientConfig,
+  contractId: string
+): Promise<ApiBillingContractActivateResponse["data"]> {
+  const fetchFn = cfg.fetchImpl ?? fetch;
+  const url = `${cfg.baseUrl.replace(/\/$/, "")}/v1/tenant/billing-contracts/${encodeURIComponent(contractId)}/activate`;
+  const res = await fetchFn(url, { method: "POST", headers: buildHeaders(cfg) });
+  const payload = await parseJson<ApiBillingContractActivateResponse | ApiErrorEnvelope>(res);
   if (!res.ok || "error" in payload) {
     const err = "error" in payload ? payload.error : { code: "UNKNOWN", message: res.statusText, requestId: "" };
     throw new ApiClientError(err.message, {

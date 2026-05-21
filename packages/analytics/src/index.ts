@@ -10,6 +10,8 @@ export * from "./forecast.js";
 export * from "./forecast/champion-engine.js";
 export * from "./daily-mart.js";
 export * from "./rate-card.js";
+export * from "./insight-context.js";
+export * from "./sync-rate-card-from-contract.js";
 export * from "./insights.js";
 export * from "./kpi.js";
 export * from "./service.js";

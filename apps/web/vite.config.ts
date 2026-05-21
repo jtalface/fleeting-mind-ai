@@ -8,7 +8,9 @@ export default defineConfig({
   plugins: [react()],
   resolve: {
     alias: {
-      "@fleetmind/ui": path.resolve(__dirname, "../../packages/ui/src")
+      "@fleetmind/ui": path.resolve(__dirname, "../../packages/ui/src"),
+      /** Use package source in dev so new exports work without rebuilding dist. */
+      "@fleetmind/shared": path.resolve(__dirname, "../../packages/shared/src")
     }
   },
   server: {

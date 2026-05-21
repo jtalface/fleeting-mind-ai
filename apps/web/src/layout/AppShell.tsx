@@ -52,6 +52,9 @@ export function AppShell(): JSX.Element {
             <NavLink to="/map" style={linkStyle}>
               Map
             </NavLink>
+            <NavLink to="/settings" style={linkStyle}>
+              Finance
+            </NavLink>
           </nav>
         </div>
       </div>

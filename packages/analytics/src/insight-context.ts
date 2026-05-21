@@ -4,9 +4,9 @@ import type {
   InsightForecastSummary,
   KpiSnapshot
 } from "@fleetmind/shared/contracts/analytics.js";
+import { KPI_FORECAST_NOTE } from "@fleetmind/shared";
 
-const KPI_FORECAST_NOTE =
-  "Fleet KPI values are totals or window averages over the selected analysis period. Forecast nextP50 values are daily medians from the champion model trained on daily history; they are not required to match window KPI totals.";
+export { KPI_FORECAST_NOTE };
 
 export function buildInsightGenerationContext(
   forecasts?: DeterministicForecast[],

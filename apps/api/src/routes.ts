@@ -15,6 +15,7 @@ import { listEvaluationTrends } from "../../../packages/analytics/src/list-evalu
 import { listForecastEvaluations } from "../../../packages/analytics/src/list-forecast-evaluations.js";
 import { listForwardAccuracy } from "../../../packages/analytics/src/forward-accuracy.js";
 import { refreshCachedPredictions } from "../../../packages/analytics/src/refresh-predictions.js";
+import { activateBillingContract } from "../../../packages/analytics/src/sync-rate-card-from-contract.js";
 import type {
   ApiAnalyticsQueryResponse,
   ApiChatResponse,
@@ -30,8 +31,12 @@ import type {
   ApiPredictionsListResponse,
   ApiPredictionsRefreshResponse,
   ApiTelemetryIngestResponse,
+  ApiBillingContractActivateResponse,
+  ApiBillingContractCreateResponse,
+  ApiBillingContractsListResponse,
   ApiTenantRateCardResponse
 } from "../../../packages/shared/src/contracts/api.js";
+import type { TenantBillingContract } from "../../../packages/shared/src/contracts/billing-contracts.js";
 import { listFleetVehicleLocations } from "../../../packages/telemetry/src/fleet-locations.js";
 import type { TelemetryIngestPointInput, VehicleTimelineQueryInput } from "../../../packages/shared/src/contracts/telemetry.js";
 import { ApiError } from "./errors.js";
@@ -47,6 +52,7 @@ import {
   predictionsListQuerySchema,
   predictionsRefreshBodySchema,
   telemetryIngestBodySchema,
+  billingContractCreateBodySchema,
   tenantRateCardUpsertBodySchema
 } from "./schemas.js";
 import type { RequestWithContext } from "./types.js";
@@ -299,10 +305,69 @@ export function buildRoutes(runtime: ApiRuntime): Router {
       if (!tenantRuntime.repositories.rateCards) {
         throw new ApiError(501, "RATE_CARD_UNAVAILABLE", "Rate card storage is not configured.");
       }
-      const card = await tenantRuntime.repositories.rateCards.upsert(body);
+      const card = await tenantRuntime.repositories.rateCards.upsert({
+        ...body,
+        sourceContractId: null
+      });
       res.status(200).json({
         data: { tenantId: request.context.tenantId, ...card }
       } satisfies ApiTenantRateCardResponse);
+    })().catch(next);
+  });
+
+  router.get("/v1/tenant/billing-contracts", (req, res, next) => {
+    (async () => {
+      const request = asRequestWithContext(req);
+      const tenantRuntime = runtime.forTenant(request.context.tenantId);
+      if (!tenantRuntime.repositories.billingContracts) {
+        throw new ApiError(501, "BILLING_CONTRACTS_UNAVAILABLE", "Billing contract storage is not configured.");
+      }
+      const contracts = await tenantRuntime.repositories.billingContracts.list();
+      const active = contracts.find((c) => c.isActive);
+      res.status(200).json({
+        data: {
+          tenantId: request.context.tenantId,
+          contracts: contracts as TenantBillingContract[],
+          ...(active ? { activeContractId: active.id } : {})
+        }
+      } satisfies ApiBillingContractsListResponse);
+    })().catch(next);
+  });
+
+  router.post("/v1/tenant/billing-contracts", (req, res, next) => {
+    (async () => {
+      const request = asRequestWithContext(req);
+      const body = billingContractCreateBodySchema.parse(request.body);
+      const tenantRuntime = runtime.forTenant(request.context.tenantId);
+      if (!tenantRuntime.repositories.billingContracts) {
+        throw new ApiError(501, "BILLING_CONTRACTS_UNAVAILABLE", "Billing contract storage is not configured.");
+      }
+      const created = await tenantRuntime.repositories.billingContracts.create(body);
+      res.status(201).json({
+        data: created as TenantBillingContract
+      } satisfies ApiBillingContractCreateResponse);
+    })().catch(next);
+  });
+
+  router.post("/v1/tenant/billing-contracts/:id/activate", (req, res, next) => {
+    (async () => {
+      const request = asRequestWithContext(req);
+      const contractId = String(request.params.id ?? "");
+      const tenantRuntime = runtime.forTenant(request.context.tenantId);
+      if (!tenantRuntime.repositories.billingContracts) {
+        throw new ApiError(501, "BILLING_CONTRACTS_UNAVAILABLE", "Billing contract storage is not configured.");
+      }
+      const contract = await activateBillingContract(tenantRuntime.repositories, contractId);
+      if (!contract) {
+        throw new ApiError(404, "CONTRACT_NOT_FOUND", "Billing contract not found.");
+      }
+      const rateCard = await tenantRuntime.repositories.rateCards!.get();
+      res.status(200).json({
+        data: {
+          contract: contract as TenantBillingContract,
+          rateCard: { tenantId: request.context.tenantId, ...rateCard }
+        }
+      } satisfies ApiBillingContractActivateResponse);
     })().catch(next);
   });
 

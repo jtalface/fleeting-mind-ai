@@ -16,6 +16,7 @@ Monorepo foundation for a production-grade SaaS platform that ingests telemetry,
 | Chat | http://localhost:5173/chat |
 | Insights | http://localhost:5173/insights |
 | Predictions | http://localhost:5173/predictions |
+| Finance (rate card & contracts) | http://localhost:5173/settings |
 | Map | http://localhost:5173/map |
 
 **Migrations** (from repo root, uses `.env`):
@@ -65,6 +66,13 @@ Pipeline order every 6h (default): Flespi incremental sync → batch analytics �
 - `GET /v1/predictions/forward-accuracy` — realized vs P50 for mature runs.
 - `GET /v1/predictions/evaluation-trends` — MAPE over time (holdout + forward).
 - Weekly **deep backfill** (optional): `WORKER_CRON_DEEP_BACKFILL=0 3 * * 0` with `WORKER_DEEP_BACKFILL_LOOKBACK_DAYS=30`.
+
+**Phase 2b — finance truth**
+
+- KPI revenue/cost use **tenant rate card** (km × rates). Seed activates a demo municipal sweeper contract (3.2 / 0.85 USD per km).
+- **Finance** tab: edit rate card manually or manage billing contracts; **Activate** syncs rates to the rate card.
+- Insights and Predictions show a **KPIs vs forecasts** callout (window totals vs daily P50 medians).
+- API: `GET/PUT /v1/tenant/rate-card`, `GET/POST /v1/tenant/billing-contracts`, `POST /v1/tenant/billing-contracts/:id/activate`.
 
 ### Prune pre-LLM insights (optional)
 

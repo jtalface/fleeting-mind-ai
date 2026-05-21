@@ -26,6 +26,7 @@ import type {
   ListLatestPredictionRunsQuery,
   PredictionRunRecord,
   PredictionRunStored,
+  CreateBillingContractRecordInput,
   TenantRepositorySet,
   UpsertTenantRateCardInput,
   UpsertVehicleFromExternalInput
@@ -162,6 +163,22 @@ type TenantRateCardRow = {
   revenuePerKm: number;
   operatingCostPerKm: number;
   currency: string;
+  sourceContractId?: string | null;
+};
+
+type TenantBillingContractRow = {
+  id: string;
+  tenantId: string;
+  name: string;
+  externalJobId: string | null;
+  revenuePerKm: number;
+  operatingCostPerKm: number;
+  currency: string;
+  isActive: boolean;
+  effectiveFrom: Date;
+  notes: string | null;
+  createdAt: Date;
+  updatedAt: Date;
 };
 
 type FleetMetricDailyRowDb = {
@@ -184,6 +201,23 @@ type TenantRateCardDelegate = {
     create: TenantRateCardRow;
     update: Partial<Omit<TenantRateCardRow, "tenantId">>;
   }): Promise<TenantRateCardRow>;
+};
+
+type TenantBillingContractDelegate = {
+  findMany(args: {
+    where: { tenantId: string };
+    orderBy?: { createdAt: "desc" };
+  }): Promise<TenantBillingContractRow[]>;
+  findFirst(args: { where: { tenantId: string; id?: string; isActive?: boolean } }): Promise<TenantBillingContractRow | null>;
+  create(args: { data: Omit<TenantBillingContractRow, "id" | "createdAt" | "updatedAt"> & { id?: string } }): Promise<TenantBillingContractRow>;
+  updateMany(args: {
+    where: { tenantId: string; isActive?: boolean };
+    data: Partial<Pick<TenantBillingContractRow, "isActive" | "effectiveFrom">>;
+  }): Promise<{ count: number }>;
+  update(args: {
+    where: { id: string };
+    data: Partial<Pick<TenantBillingContractRow, "isActive" | "effectiveFrom">>;
+  }): Promise<TenantBillingContractRow>;
 };
 
 type FleetMetricDailyDelegate = {
@@ -301,6 +335,7 @@ export interface PrismaDbClient {
   conversationMessage: ConversationMessageDelegate;
   integrationSyncState: IntegrationSyncStateDelegate;
   tenantRateCard: TenantRateCardDelegate;
+  tenantBillingContract: TenantBillingContractDelegate;
   fleetMetricDaily: FleetMetricDailyDelegate;
   forecastEvaluation: ForecastEvaluationDelegate;
   predictionRun: PredictionRunDelegate;
@@ -313,7 +348,23 @@ const mapRateCard = (row: TenantRateCardRow) => ({
   tenantId: row.tenantId,
   revenuePerKm: row.revenuePerKm,
   operatingCostPerKm: row.operatingCostPerKm,
-  currency: row.currency
+  currency: row.currency,
+  ...(row.sourceContractId ? { sourceContractId: row.sourceContractId } : {})
+});
+
+const mapBillingContract = (row: TenantBillingContractRow) => ({
+  id: row.id,
+  tenantId: row.tenantId,
+  name: row.name,
+  ...(row.externalJobId ? { externalJobId: row.externalJobId } : {}),
+  revenuePerKm: row.revenuePerKm,
+  operatingCostPerKm: row.operatingCostPerKm,
+  currency: row.currency,
+  isActive: row.isActive,
+  effectiveFrom: row.effectiveFrom.toISOString(),
+  ...(row.notes ? { notes: row.notes } : {}),
+  createdAt: row.createdAt.toISOString(),
+  updatedAt: row.updatedAt.toISOString()
 });
 
 const toIso = (value: Date | null | undefined): string | undefined => (value ? value.toISOString() : undefined);
@@ -707,21 +758,81 @@ export const createPrismaTenantRepositories = (tenantId: string, db: PrismaDbCli
       });
     },
     upsert: async (input: UpsertTenantRateCardInput) => {
+      const sourceUpdate =
+        input.sourceContractId === null
+          ? { sourceContractId: null }
+          : input.sourceContractId
+            ? { sourceContractId: input.sourceContractId }
+            : {};
       const row = await db.tenantRateCard.upsert({
         where: { tenantId },
         create: {
           tenantId,
           revenuePerKm: input.revenuePerKm,
           operatingCostPerKm: input.operatingCostPerKm,
-          currency: input.currency ?? "USD"
+          currency: input.currency ?? "USD",
+          ...("sourceContractId" in sourceUpdate ? sourceUpdate : {})
         },
         update: {
           revenuePerKm: input.revenuePerKm,
           operatingCostPerKm: input.operatingCostPerKm,
-          ...(input.currency ? { currency: input.currency } : {})
+          ...(input.currency ? { currency: input.currency } : {}),
+          ...sourceUpdate
         }
       });
       return mapRateCard(row);
+    }
+  },
+  billingContracts: {
+    list: async () => {
+      const rows = await db.tenantBillingContract.findMany({
+        where: { tenantId },
+        orderBy: { createdAt: "desc" }
+      });
+      return rows.map(mapBillingContract);
+    },
+    create: async (input: CreateBillingContractRecordInput) => {
+      const row = await db.tenantBillingContract.create({
+        data: {
+          tenantId,
+          name: input.name,
+          externalJobId: input.externalJobId ?? null,
+          revenuePerKm: input.revenuePerKm,
+          operatingCostPerKm: input.operatingCostPerKm,
+          currency: input.currency ?? "USD",
+          isActive: false,
+          notes: input.notes ?? null
+        }
+      });
+      return mapBillingContract(row);
+    },
+    activate: async (contractId: string) => {
+      const target = await db.tenantBillingContract.findFirst({
+        where: { tenantId, id: contractId }
+      });
+      if (!target) {
+        return null;
+      }
+      await db.$transaction(async (tx) => {
+        await tx.tenantBillingContract.updateMany({
+          where: { tenantId, isActive: true },
+          data: { isActive: false }
+        });
+        await tx.tenantBillingContract.update({
+          where: { id: contractId },
+          data: { isActive: true, effectiveFrom: new Date() }
+        });
+      });
+      const updated = await db.tenantBillingContract.findFirst({
+        where: { tenantId, id: contractId }
+      });
+      return updated ? mapBillingContract(updated) : null;
+    },
+    getActive: async () => {
+      const row = await db.tenantBillingContract.findFirst({
+        where: { tenantId, isActive: true }
+      });
+      return row ? mapBillingContract(row) : null;
     }
   },
   fleetMetricDaily: {
