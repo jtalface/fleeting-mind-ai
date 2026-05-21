@@ -48,6 +48,15 @@ curl -X POST http://localhost:4000/v1/predictions/refresh \
 
 Then open **Predictions** in the web app or `GET /v1/predictions`.
 
+### Prune pre-LLM insights (optional)
+
+When `OPENAI_API_KEY` is set, analytics refresh drops legacy rule-based rows (`insight_idle_*`, `insight_fleet_*`, `insight_fuel_*`) from the DB and from API responses. To clean up without opening Insights:
+
+```bash
+curl -X POST http://localhost:4000/v1/insights/prune-legacy \
+  -H "x-tenant-id: tenant_demo" -H "x-user-id: user_local"
+```
+
 ## Architecture and Agent Handoff
 
 - `docs/architecture.md`: architecture blueprint, contracts, boundaries, and dependency graph.

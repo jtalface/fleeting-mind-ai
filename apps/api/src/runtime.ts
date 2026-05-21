@@ -2,8 +2,11 @@ import { AgentOrchestrator } from "../../../packages/ai-core/src/orchestrator.js
 import { InMemoryConversationMemory } from "../../../packages/ai-core/src/memory.js";
 import { ToolRegistry } from "../../../packages/ai-core/src/tool-registry.js";
 import { persistInsights } from "../../../packages/analytics/src/persist-insights.js";
+import { pruneLegacyRuleBasedInsights } from "../../../packages/analytics/src/prune-legacy-insights.js";
 import { createInsightGenerator } from "../../../packages/ai-core/src/generate-llm-insights.js";
 import { buildInsightGenerationContext } from "../../../packages/analytics/src/insight-context.js";
+import { filterLegacyRuleBasedInsights } from "../../../packages/analytics/src/insight-legacy.js";
+import { shouldExcludeLegacyRuleBasedInsights } from "../../../packages/analytics/src/prune-legacy-insights.js";
 import { DefaultAnalyticsService } from "../../../packages/analytics/src/service.js";
 import { computeVehicleGroupMetrics } from "../../../packages/analytics/src/vehicle-group-metrics.js";
 import { buildDailyHistoryFromRepositories } from "../../../packages/analytics/src/history.js";
@@ -130,7 +133,9 @@ export class ApiRuntime {
       kpis,
       buildInsightGenerationContext(forecasts)
     );
-    return persistInsights(tenantRuntime.repositories, generated);
+    const persisted = await persistInsights(tenantRuntime.repositories, generated);
+    await pruneLegacyRuleBasedInsights(tenantRuntime.repositories, persisted);
+    return persisted;
   }
 
   public async runIntegrationSync(payload: IntegrationSyncJobPayload): Promise<IntegrationSyncResult> {
@@ -429,7 +434,10 @@ export class ApiRuntime {
 
     this.registry.register("list_recent_insights", async (request) => {
       const runtime = this.forTenant(request.context.tenantId);
-      const insights = await runtime.repositories.insights.listRecent(20);
+      let insights = await runtime.repositories.insights.listRecent(20);
+      if (shouldExcludeLegacyRuleBasedInsights()) {
+        insights = filterLegacyRuleBasedInsights(insights);
+      }
       return {
         toolName: "list_recent_insights",
         ok: true,

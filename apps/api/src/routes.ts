@@ -1,7 +1,15 @@
 import { Router } from "express";
 import { buildDailyHistoryFromRepositories } from "../../../packages/analytics/src/history.js";
 import { buildInsightGenerationContext } from "../../../packages/analytics/src/insight-context.js";
+import {
+  filterLegacyRuleBasedInsights,
+  mergeInsightsForDisplay
+} from "../../../packages/analytics/src/insight-legacy.js";
 import { persistInsights } from "../../../packages/analytics/src/persist-insights.js";
+import {
+  pruneLegacyRuleBasedInsights,
+  shouldExcludeLegacyRuleBasedInsights
+} from "../../../packages/analytics/src/prune-legacy-insights.js";
 import { listCachedPredictions } from "../../../packages/analytics/src/list-predictions.js";
 import { refreshCachedPredictions } from "../../../packages/analytics/src/refresh-predictions.js";
 import type {
@@ -9,6 +17,7 @@ import type {
   ApiChatResponse,
   ApiFleetLocationsResponse,
   ApiInsightsListResponse,
+  ApiInsightsPruneLegacyResponse,
   ApiIntegrationPreviewResponse,
   ApiIntegrationStatusResponse,
   ApiIntegrationSyncResponse,
@@ -132,12 +141,11 @@ export function buildRoutes(runtime: ApiRuntime): Router {
         buildInsightGenerationContext(forecasts)
       );
       const persisted = await persistInsights(tenantRuntime.repositories, generatedInsights);
+      await pruneLegacyRuleBasedInsights(tenantRuntime.repositories, persisted);
       const historical = await tenantRuntime.repositories.insights.listRecent(50);
-      const freshIds = new Set(persisted.map((item) => item.id));
-      const insights = [
-        ...persisted,
-        ...historical.filter((item) => !freshIds.has(item.id))
-      ].slice(0, 50);
+      const insights = mergeInsightsForDisplay(persisted, historical, 50, {
+        excludeLegacyRuleBased: shouldExcludeLegacyRuleBasedInsights()
+      });
 
       res.status(200).json({
         data: {
@@ -243,10 +251,22 @@ export function buildRoutes(runtime: ApiRuntime): Router {
       const request = asRequestWithContext(req);
       const tenantRuntime = runtime.forTenant(request.context.tenantId);
       const limit = typeof request.query.limit === "string" ? Number(request.query.limit) : 20;
-      const insights = await tenantRuntime.repositories.insights.listRecent(
+      let insights = await tenantRuntime.repositories.insights.listRecent(
         Number.isFinite(limit) ? limit : 20
       );
+      if (shouldExcludeLegacyRuleBasedInsights()) {
+        insights = filterLegacyRuleBasedInsights(insights);
+      }
       res.status(200).json({ data: insights } satisfies ApiInsightsListResponse);
+    })().catch(next);
+  });
+
+  router.post("/v1/insights/prune-legacy", (req, res, next) => {
+    (async () => {
+      const request = asRequestWithContext(req);
+      const tenantRuntime = runtime.forTenant(request.context.tenantId);
+      const deleted = await tenantRuntime.repositories.insights.deleteLegacyRuleBased();
+      res.status(200).json({ data: { deleted } } satisfies ApiInsightsPruneLegacyResponse);
     })().catch(next);
   });
 
@@ -346,7 +366,10 @@ export function buildRoutes(runtime: ApiRuntime): Router {
       const request = asRequestWithContext(req);
       const body = chatBodySchema.parse(request.body);
       const tenantRuntime = runtime.forTenant(request.context.tenantId);
-      const recentInsights = await tenantRuntime.repositories.insights.listRecent(20);
+      let recentInsights = await tenantRuntime.repositories.insights.listRecent(20);
+      if (shouldExcludeLegacyRuleBasedInsights()) {
+        recentInsights = filterLegacyRuleBasedInsights(recentInsights);
+      }
       const response = await runtime.getChatOrchestrator().runTurn(
         {
           conversationId: body.conversationId,

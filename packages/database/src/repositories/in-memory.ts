@@ -174,7 +174,22 @@ export class InMemoryTenantRepositories implements TenantRepositorySet {
       this.insightsStore
         .filter((item) => item.tenantId === this.tenantId)
         .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
-        .slice(0, limit)
+        .slice(0, limit),
+    deleteLegacyRuleBased: async (): Promise<number> => {
+      const legacyPrefixes = ["insight_idle_", "insight_fuel_"] as const;
+      const legacyExact = new Set(["insight_fleet_profit", "insight_fleet_activity"]);
+      const isLegacy = (id: string): boolean =>
+        legacyExact.has(id) || legacyPrefixes.some((prefix) => id.startsWith(prefix));
+      let removed = 0;
+      for (let i = this.insightsStore.length - 1; i >= 0; i -= 1) {
+        const row = this.insightsStore[i];
+        if (row?.tenantId === this.tenantId && isLegacy(row.id)) {
+          this.insightsStore.splice(i, 1);
+          removed += 1;
+        }
+      }
+      return removed;
+    }
   };
 
   public readonly conversations = {

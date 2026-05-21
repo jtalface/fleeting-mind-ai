@@ -569,7 +569,20 @@ export const createPrismaTenantRepositories = (tenantId: string, db: PrismaDbCli
           orderBy: { createdAt: "desc" },
           take: limit
         })
-      ).map(mapInsight)
+      ).map(mapInsight),
+    deleteLegacyRuleBased: async (): Promise<number> => {
+      const result = await db.insight.deleteMany({
+        where: {
+          tenantId,
+          OR: [
+            { id: { startsWith: "insight_idle_" } },
+            { id: { startsWith: "insight_fuel_" } },
+            { id: { in: ["insight_fleet_profit", "insight_fleet_activity"] } }
+          ]
+        }
+      });
+      return result.count;
+    }
   },
   conversations: {
     createConversation: async (input: CreateConversationInput): Promise<Conversation> =>

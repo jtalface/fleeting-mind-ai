@@ -35,6 +35,12 @@ export interface ApiInsightsListResponse {
   data: AnalyticsReport["insights"];
 }
 
+export interface ApiInsightsPruneLegacyResponse {
+  data: {
+    deleted: number;
+  };
+}
+
 export interface ApiPredictionsListResponse {
   data: PredictionsListResult;
 }

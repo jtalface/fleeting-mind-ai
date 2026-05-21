@@ -79,6 +79,8 @@ export interface MaintenanceRepository {
 export interface InsightRepository {
   create(input: CreateInsightInput): Promise<Insight>;
   listRecent(limit?: number): Promise<Insight[]>;
+  /** Removes pre-LLM rule-based insight rows (insight_idle_*, insight_fleet_*, insight_fuel_*). */
+  deleteLegacyRuleBased(): Promise<number>;
 }
 
 export interface ConversationRepository {
