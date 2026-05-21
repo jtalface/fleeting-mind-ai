@@ -19,12 +19,22 @@ export interface ForecastPoint {
     lowerBound: number;
     upperBound: number;
 }
+export type ForecastAlgorithm = "seasonal_naive" | "ets" | "gradient_boosting_stumps" | "linear_regression_with_residual_band";
+export interface ForecastCandidateScore {
+    algorithm: ForecastAlgorithm;
+    mapePct: number;
+}
 export interface ForecastExplanation {
-    algorithm: "linear_regression_with_residual_band";
-    slopePerDay: number;
-    intercept: number;
+    algorithm: ForecastAlgorithm;
     sampleSize: number;
     residualStdDev: number;
+    championSelected?: boolean;
+    backtestMapePct?: number;
+    candidates?: ForecastCandidateScore[];
+    slopePerDay?: number;
+    intercept?: number;
+    seasonPeriod?: number;
+    treeCount?: number;
 }
 export interface DeterministicForecast {
     tenantId: TenantId;
@@ -41,4 +51,3 @@ export interface AnalyticsReport {
     insights: Insight[];
     forecasts: DeterministicForecast[];
 }
-//# sourceMappingURL=analytics.d.ts.map

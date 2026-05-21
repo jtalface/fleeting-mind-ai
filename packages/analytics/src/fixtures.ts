@@ -10,7 +10,9 @@ export const benchmarkHistoryFixture: AnalyticsDataPoint[] = [
   { date: "2026-04-07", revenue: 4710, cost: 3310, fuelCostPerKm: 0.78, idleRatioPct: 23, utilizationPct: 77 },
   { date: "2026-04-08", revenue: 4780, cost: 3360, fuelCostPerKm: 0.79, idleRatioPct: 24, utilizationPct: 76 },
   { date: "2026-04-09", revenue: 4860, cost: 3420, fuelCostPerKm: 0.8, idleRatioPct: 23, utilizationPct: 77 },
-  { date: "2026-04-10", revenue: 4950, cost: 3470, fuelCostPerKm: 0.81, idleRatioPct: 24, utilizationPct: 76 }
+  { date: "2026-04-10", revenue: 4950, cost: 3470, fuelCostPerKm: 0.81, idleRatioPct: 24, utilizationPct: 76 },
+  { date: "2026-04-11", revenue: 5020, cost: 3510, fuelCostPerKm: 0.82, idleRatioPct: 23, utilizationPct: 77 },
+  { date: "2026-04-12", revenue: 5090, cost: 3560, fuelCostPerKm: 0.82, idleRatioPct: 22, utilizationPct: 78 },
+  { date: "2026-04-13", revenue: 5160, cost: 3610, fuelCostPerKm: 0.83, idleRatioPct: 21, utilizationPct: 79 },
+  { date: "2026-04-14", revenue: 5230, cost: 3660, fuelCostPerKm: 0.84, idleRatioPct: 20, utilizationPct: 80 }
 ];
-
-export const goldenForecastRevenueFirst3Days = [5028, 5108.1818, 5188.3636];

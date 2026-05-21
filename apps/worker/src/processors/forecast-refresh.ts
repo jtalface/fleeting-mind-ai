@@ -31,8 +31,13 @@ export async function processForecastRefresh(
     asOf: resolved.asOf
   };
 
+  const { rebuildDailyMart } = await import("@fleetmind/analytics/daily-mart.js");
   const { buildDailyHistoryFromRepositories } = await import("@fleetmind/analytics/history.js");
+  const { persistForecastEvaluations } = await import("@fleetmind/analytics/persist-forecast-evaluations.js");
+
+  await rebuildDailyMart(input);
   const history = await buildDailyHistoryFromRepositories(input);
-  runtime.analytics.runForecasts(input, history, payload.horizonDays);
+  const forecasts = runtime.analytics.runForecasts(input, history, payload.horizonDays);
+  await persistForecastEvaluations(repositories, forecasts);
   return { skipped: false };
 }

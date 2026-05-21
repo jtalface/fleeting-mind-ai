@@ -16,8 +16,13 @@ import type {
   CreateMaintenanceRecordInput,
   CreateTripInput,
   CreateVehicleInput,
+  FleetDailyAggregate,
+  FleetMetricDailyRow,
+  ForecastEvaluationRecord,
   IntegrationSyncStateRecord,
+  TenantRateCardRecord,
   TenantRepositorySet,
+  UpsertTenantRateCardInput,
   UpsertVehicleFromExternalInput
 } from "./contracts.js";
 
@@ -34,6 +39,9 @@ export class InMemoryTenantRepositories implements TenantRepositorySet {
   private readonly conversationsStore: Conversation[] = [];
   private readonly messagesStore: ConversationMessage[] = [];
   private readonly syncStateStore = new Map<string, IntegrationSyncStateRecord>();
+  private rateCard: TenantRateCardRecord;
+  private readonly martStore: FleetMetricDailyRow[] = [];
+  private readonly forecastEvalStore: ForecastEvaluationRecord[] = [];
 
   public readonly vehicles = {
     create: async (input: CreateVehicleInput): Promise<Vehicle> => {
@@ -54,9 +62,13 @@ export class InMemoryTenantRepositories implements TenantRepositorySet {
       this.vehiclesStore.find((item) => item.externalId === externalId && item.tenantId === this.tenantId) ??
       null,
     upsertFromExternal: async (input: UpsertVehicleFromExternalInput): Promise<Vehicle> => {
-      const existing = await this.vehicles.findByExternalId(input.externalId);
+      const existingByExternal = await this.vehicles.findByExternalId(input.externalId);
+      const existingByVin =
+        this.vehiclesStore.find((item) => item.tenantId === this.tenantId && item.vin === input.vin) ?? null;
+      const existing = existingByExternal ?? existingByVin;
       if (existing) {
         Object.assign(existing, {
+          externalId: input.externalId,
           vin: input.vin,
           plateNumber: input.plateNumber,
           class: input.class,
@@ -199,6 +211,78 @@ export class InMemoryTenantRepositories implements TenantRepositorySet {
         .sort((a, b) => a.createdAt.localeCompare(b.createdAt))
   };
 
+  public readonly rateCards = {
+    get: async (): Promise<TenantRateCardRecord> => this.rateCard,
+    upsert: async (input: UpsertTenantRateCardInput): Promise<TenantRateCardRecord> => {
+      this.rateCard = {
+        tenantId: this.tenantId,
+        revenuePerKm: input.revenuePerKm,
+        operatingCostPerKm: input.operatingCostPerKm,
+        currency: input.currency ?? "USD"
+      };
+      return this.rateCard;
+    }
+  };
+
+  public readonly fleetMetricDaily = {
+    upsertMany: async (rows: FleetMetricDailyRow[]): Promise<void> => {
+      for (const row of rows) {
+        const index = this.martStore.findIndex(
+          (item) => item.tenantId === row.tenantId && item.vehicleId === row.vehicleId && item.date === row.date
+        );
+        if (index >= 0) {
+          this.martStore[index] = row;
+        } else {
+          this.martStore.push(row);
+        }
+      }
+    },
+    listAggregatedByDay: async (window: { start: string; end: string }): Promise<FleetDailyAggregate[]> => {
+      const filtered = this.martStore.filter(
+        (item) => item.tenantId === this.tenantId && item.date >= window.start.slice(0, 10) && item.date <= window.end.slice(0, 10)
+      );
+      const byDay = new Map<string, FleetDailyAggregate & { fuelCost: number; distanceKm: number; samples: number }>();
+      for (const row of filtered) {
+        const existing = byDay.get(row.date) ?? {
+          date: row.date,
+          revenue: 0,
+          cost: 0,
+          fuelCost: 0,
+          distanceKm: 0,
+          fuelCostPerKm: 0,
+          idleRatioPct: 0,
+          utilizationPct: 0,
+          samples: 0
+        };
+        existing.revenue += row.revenue;
+        existing.cost += row.operatingCost;
+        existing.fuelCost += row.fuelCost;
+        existing.distanceKm += row.distanceKm;
+        existing.idleRatioPct += row.idleRatioPct;
+        existing.utilizationPct += row.utilizationPct;
+        existing.samples += 1;
+        byDay.set(row.date, existing);
+      }
+      return [...byDay.values()].map((row) => {
+        const samples = Math.max(1, row.samples);
+        return {
+          date: row.date,
+          revenue: row.revenue,
+          cost: row.cost,
+          fuelCostPerKm: row.distanceKm > 0 ? row.fuelCost / row.distanceKm : 0,
+          idleRatioPct: row.idleRatioPct / samples,
+          utilizationPct: row.utilizationPct / samples
+        };
+      });
+    }
+  };
+
+  public readonly forecastEvaluations = {
+    create: async (record: ForecastEvaluationRecord): Promise<void> => {
+      this.forecastEvalStore.push(record);
+    }
+  };
+
   public readonly integrationSync = {
     get: async (connector: string): Promise<IntegrationSyncStateRecord | null> =>
       this.syncStateStore.get(`${this.tenantId}:${connector}`) ?? null,
@@ -208,7 +292,14 @@ export class InMemoryTenantRepositories implements TenantRepositorySet {
     }
   };
 
-  public constructor(private readonly tenantId: string) {}
+  public constructor(private readonly tenantId: string) {
+    this.rateCard = {
+      tenantId,
+      revenuePerKm: 2.1,
+      operatingCostPerKm: 0.6,
+      currency: "USD"
+    };
+  }
 }
 
 export const createInMemoryTenantRepositories = (tenantId: string): TenantRepositorySet =>

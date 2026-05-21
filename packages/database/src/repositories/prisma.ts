@@ -16,8 +16,12 @@ import type {
   CreateMaintenanceRecordInput,
   CreateTripInput,
   CreateVehicleInput,
+  FleetDailyAggregate,
+  FleetMetricDailyRow,
+  ForecastEvaluationRecord,
   IntegrationSyncStateRecord,
   TenantRepositorySet,
+  UpsertTenantRateCardInput,
   UpsertVehicleFromExternalInput
 } from "./contracts.js";
 import { Prisma } from "@prisma/client";
@@ -58,7 +62,7 @@ type VehicleDelegate = Delegate<
   VehicleRow
 > & {
   findFirst(args: {
-    where: { id?: string; tenantId: string; externalId?: string };
+    where: { id?: string; tenantId: string; externalId?: string; vin?: string };
   }): Promise<VehicleRow | null>;
   update(args: {
     where: { id: string };
@@ -143,6 +147,51 @@ type IntegrationSyncStateDelegate = {
   }): Promise<IntegrationSyncStateRow>;
 };
 
+type TenantRateCardRow = {
+  tenantId: string;
+  revenuePerKm: number;
+  operatingCostPerKm: number;
+  currency: string;
+};
+
+type FleetMetricDailyRowDb = {
+  tenantId: string;
+  vehicleId: string;
+  date: Date;
+  revenue: number;
+  operatingCost: number;
+  fuelCost: number;
+  distanceKm: number;
+  tripCount: number;
+  idleRatioPct: number;
+  utilizationPct: number;
+};
+
+type TenantRateCardDelegate = {
+  findUnique(args: { where: { tenantId: string } }): Promise<TenantRateCardRow | null>;
+  upsert(args: {
+    where: { tenantId: string };
+    create: TenantRateCardRow;
+    update: Partial<Omit<TenantRateCardRow, "tenantId">>;
+  }): Promise<TenantRateCardRow>;
+};
+
+type FleetMetricDailyDelegate = {
+  findMany(args: {
+    where: { tenantId: string; date?: { gte?: Date; lte?: Date } };
+    orderBy?: { date: "asc" | "desc" };
+  }): Promise<FleetMetricDailyRowDb[]>;
+  upsert(args: {
+    where: { tenantId_vehicleId_date: { tenantId: string; vehicleId: string; date: Date } };
+    create: FleetMetricDailyRowDb;
+    update: Omit<FleetMetricDailyRowDb, "tenantId" | "vehicleId" | "date">;
+  }): Promise<FleetMetricDailyRowDb>;
+};
+
+type ForecastEvaluationDelegate = {
+  create(args: { data: Omit<ForecastEvaluationRecord, never> & { trainedUntil: Date } }): Promise<unknown>;
+};
+
 export interface PrismaDbClient {
   vehicle: VehicleDelegate;
   telemetryPoint: TelemetryDelegate;
@@ -153,9 +202,23 @@ export interface PrismaDbClient {
   conversation: ConversationDelegate;
   conversationMessage: ConversationMessageDelegate;
   integrationSyncState: IntegrationSyncStateDelegate;
+  tenantRateCard: TenantRateCardDelegate;
+  fleetMetricDaily: FleetMetricDailyDelegate;
+  forecastEvaluation: ForecastEvaluationDelegate;
 }
 
+const toDateOnly = (day: string): Date => new Date(`${day}T00:00:00.000Z`);
+
+const mapRateCard = (row: TenantRateCardRow) => ({
+  tenantId: row.tenantId,
+  revenuePerKm: row.revenuePerKm,
+  operatingCostPerKm: row.operatingCostPerKm,
+  currency: row.currency
+});
+
 const toIso = (value: Date | null | undefined): string | undefined => (value ? value.toISOString() : undefined);
+
+const dayKey = (iso: string): string => iso.slice(0, 10);
 
 const mapVehicle = (row: VehicleRow): Vehicle => {
   const { externalId, ...rest } = row as VehicleRow & { externalId?: string | null };
@@ -241,38 +304,45 @@ export const createPrismaTenantRepositories = (tenantId: string, db: PrismaDbCli
       return row ? mapVehicle(row) : null;
     },
     upsertFromExternal: async (input: UpsertVehicleFromExternalInput): Promise<Vehicle> => {
-      const existing = await db.vehicle.findFirst({
+      const updateData = {
+        externalId: input.externalId,
+        vin: input.vin,
+        class: input.class,
+        active: input.active ?? true,
+        ...(input.plateNumber !== undefined ? { plateNumber: input.plateNumber } : {}),
+        ...(input.make !== undefined ? { make: input.make } : {}),
+        ...(input.model !== undefined ? { model: input.model } : {}),
+        ...(input.year !== undefined ? { year: input.year } : {}),
+        ...(input.odometerKm !== undefined ? { odometerKm: input.odometerKm } : {})
+      };
+
+      const existingByExternal = await db.vehicle.findFirst({
         where: { tenantId, externalId: input.externalId }
       });
-      if (existing) {
+      if (existingByExternal) {
         const updated = await db.vehicle.update({
-          where: { id: existing.id },
-          data: {
-            vin: input.vin,
-            class: input.class,
-            active: input.active ?? true,
-            ...(input.plateNumber !== undefined ? { plateNumber: input.plateNumber } : {}),
-            ...(input.make !== undefined ? { make: input.make } : {}),
-            ...(input.model !== undefined ? { model: input.model } : {}),
-            ...(input.year !== undefined ? { year: input.year } : {}),
-            ...(input.odometerKm !== undefined ? { odometerKm: input.odometerKm } : {})
-          }
+          where: { id: existingByExternal.id },
+          data: updateData
         });
         return mapVehicle(updated);
       }
+
+      const existingByVin = await db.vehicle.findFirst({
+        where: { tenantId, vin: input.vin }
+      });
+      if (existingByVin) {
+        const updated = await db.vehicle.update({
+          where: { id: existingByVin.id },
+          data: updateData
+        });
+        return mapVehicle(updated);
+      }
+
       return mapVehicle(
         await db.vehicle.create({
           data: {
             tenantId,
-            externalId: input.externalId,
-            vin: input.vin,
-            class: input.class,
-            active: input.active ?? true,
-            ...(input.plateNumber !== undefined ? { plateNumber: input.plateNumber } : {}),
-            ...(input.make !== undefined ? { make: input.make } : {}),
-            ...(input.model !== undefined ? { model: input.model } : {}),
-            ...(input.year !== undefined ? { year: input.year } : {}),
-            ...(input.odometerKm !== undefined ? { odometerKm: input.odometerKm } : {})
+            ...updateData
           }
         })
       );
@@ -432,6 +502,133 @@ export const createPrismaTenantRepositories = (tenantId: string, db: PrismaDbCli
       )
         .map(mapMessage)
         .reverse()
+  },
+  rateCards: {
+    get: async () => {
+      const row = await db.tenantRateCard.findUnique({ where: { tenantId } });
+      if (row) {
+        return mapRateCard(row);
+      }
+      return mapRateCard({
+        tenantId,
+        revenuePerKm: 2.1,
+        operatingCostPerKm: 0.6,
+        currency: "USD"
+      });
+    },
+    upsert: async (input: UpsertTenantRateCardInput) => {
+      const row = await db.tenantRateCard.upsert({
+        where: { tenantId },
+        create: {
+          tenantId,
+          revenuePerKm: input.revenuePerKm,
+          operatingCostPerKm: input.operatingCostPerKm,
+          currency: input.currency ?? "USD"
+        },
+        update: {
+          revenuePerKm: input.revenuePerKm,
+          operatingCostPerKm: input.operatingCostPerKm,
+          ...(input.currency ? { currency: input.currency } : {})
+        }
+      });
+      return mapRateCard(row);
+    }
+  },
+  fleetMetricDaily: {
+    upsertMany: async (rows: FleetMetricDailyRow[]): Promise<void> => {
+      for (const row of rows) {
+        await db.fleetMetricDaily.upsert({
+          where: {
+            tenantId_vehicleId_date: {
+              tenantId,
+              vehicleId: row.vehicleId,
+              date: toDateOnly(row.date)
+            }
+          },
+          create: {
+            tenantId,
+            vehicleId: row.vehicleId,
+            date: toDateOnly(row.date),
+            revenue: row.revenue,
+            operatingCost: row.operatingCost,
+            fuelCost: row.fuelCost,
+            distanceKm: row.distanceKm,
+            tripCount: row.tripCount,
+            idleRatioPct: row.idleRatioPct,
+            utilizationPct: row.utilizationPct
+          },
+          update: {
+            revenue: row.revenue,
+            operatingCost: row.operatingCost,
+            fuelCost: row.fuelCost,
+            distanceKm: row.distanceKm,
+            tripCount: row.tripCount,
+            idleRatioPct: row.idleRatioPct,
+            utilizationPct: row.utilizationPct
+          }
+        });
+      }
+    },
+    listAggregatedByDay: async (window: { start: string; end: string }): Promise<FleetDailyAggregate[]> => {
+      const rows = await db.fleetMetricDaily.findMany({
+        where: {
+          tenantId,
+          date: { gte: toDateOnly(dayKey(window.start)), lte: toDateOnly(dayKey(window.end)) }
+        },
+        orderBy: { date: "asc" }
+      });
+      const byDay = new Map<string, FleetDailyAggregate & { fuelCost: number; distanceKm: number; samples: number }>();
+      for (const row of rows) {
+        const date = row.date.toISOString().slice(0, 10);
+        const existing = byDay.get(date) ?? {
+          date,
+          revenue: 0,
+          cost: 0,
+          fuelCost: 0,
+          distanceKm: 0,
+          fuelCostPerKm: 0,
+          idleRatioPct: 0,
+          utilizationPct: 0,
+          samples: 0
+        };
+        existing.revenue += row.revenue;
+        existing.cost += row.operatingCost;
+        existing.fuelCost += row.fuelCost;
+        existing.distanceKm += row.distanceKm;
+        existing.idleRatioPct += row.idleRatioPct;
+        existing.utilizationPct += row.utilizationPct;
+        existing.samples += 1;
+        byDay.set(date, existing);
+      }
+      return [...byDay.values()].map((row) => {
+        const samples = Math.max(1, row.samples);
+        return {
+          date: row.date,
+          revenue: row.revenue,
+          cost: row.cost,
+          fuelCostPerKm: row.distanceKm > 0 ? row.fuelCost / row.distanceKm : 0,
+          idleRatioPct: row.idleRatioPct / samples,
+          utilizationPct: row.utilizationPct / samples
+        };
+      });
+    }
+  },
+  forecastEvaluations: {
+    create: async (record: ForecastEvaluationRecord): Promise<void> => {
+      await db.forecastEvaluation.create({
+        data: {
+          tenantId,
+          metricKey: record.metricKey,
+          algorithm: record.algorithm,
+          trainedUntil: new Date(record.trainedUntil),
+          horizonDays: record.horizonDays,
+          mae: record.mae,
+          maePct: record.mapePct,
+          withinBandPct: record.withinBandPct,
+          sampleSize: record.sampleSize
+        }
+      });
+    }
   },
   integrationSync: {
     get: async (connector: string): Promise<IntegrationSyncStateRecord | null> => {

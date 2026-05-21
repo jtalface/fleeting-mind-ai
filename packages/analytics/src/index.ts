@@ -7,6 +7,9 @@ export interface AnalyticsPackageBoundary {
 export * from "./contracts.js";
 export * from "./fixtures.js";
 export * from "./forecast.js";
+export * from "./forecast/champion-engine.js";
+export * from "./daily-mart.js";
+export * from "./rate-card.js";
 export * from "./insights.js";
 export * from "./kpi.js";
 export * from "./service.js";

@@ -14,7 +14,9 @@ This package owns:
 
 - `src/kpi.ts`: computes fleet and per-vehicle KPI snapshots over a custom time window
 - `src/insights.ts`: evaluates threshold/rule logic and emits `Insight[]`
-- `src/forecast.ts`: linear regression forecast with residual confidence band
+- `src/rate-card.ts` + `src/daily-mart.ts`: tenant rate cards and vehicle-day mart rollups
+- `src/forecast/champion-engine.ts`: backtested ETS / seasonal naive / gradient-boosting stumps
+- `src/forecast.ts`: legacy linear regression (tests/comparisons only)
 - `src/service.ts`: default orchestration service (`DefaultAnalyticsService`)
 - `src/fixtures.ts`: benchmark fixture data and golden values for regression tests
 - `src/service.test.ts`: KPI/insight behavior, golden forecast, and forecast quality tests
@@ -23,8 +25,8 @@ This package owns:
 
 All metrics are deterministic and derived from trips + fuel readings.
 
-- `revenue` = `sum(distance_km * 2.1)`
-- `cost` = `sum(fuel_total_cost) + sum(distance_km * 0.6)`
+- `revenue` = `sum(distance_km * revenue_per_km)` from `TenantRateCard` (default `2.1`)
+- `cost` = `sum(fuel_total_cost) + sum(distance_km * operating_cost_per_km)` (default `0.6`)
 - `profit` = `revenue - cost`
 - `profit_margin_pct` = `(profit / revenue) * 100` (safe divide; returns `0` when revenue is `0`)
 - `fuel_cost_per_km` = `sum(fuel_total_cost) / sum(distance_km)` (safe divide)
@@ -50,15 +52,9 @@ Rules are implemented via `InsightRule` and can be composed/overridden.
 
 Forecasting is fully deterministic:
 
-- Algorithm: `linear_regression_with_residual_band`
-- Trend model:
-  - Fit linear regression over historical series values (`y`) with ordinal time index (`x`)
-  - Predict future points using fitted slope/intercept
-- Explainability fields:
-  - `slopePerDay`
-  - `intercept`
-  - `sampleSize`
-  - `residualStdDev`
+- Candidates: `seasonal_naive`, `ets` (Holt-Winters, period 7), `gradient_boosting_stumps`
+- Rolling-origin backtest on the last 7 days (requires ≥14 history points) picks the champion by MAPE
+- Explainability fields: `algorithm`, `championSelected`, `backtestMapePct`, `candidates`, `sampleSize`, `residualStdDev`
 - Uncertainty band:
   - residual-based band = `1.96 * residualStdDev`
   - `lowerBound = predicted - band`

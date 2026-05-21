@@ -1,7 +1,7 @@
 import type { DeterministicForecast } from "@fleetmind/shared/contracts/analytics.js";
 import type { Insight } from "@fleetmind/shared/contracts/domain.js";
 import type { AnalyticsDataPoint, AnalyticsEngineInput, AnalyticsService } from "./contracts.js";
-import { DeterministicForecastEngine } from "./forecast.js";
+import { ChampionForecastEngine } from "./forecast/champion-engine.js";
 import { generateInsights } from "./insights.js";
 import { computeKpiSnapshot } from "./kpi.js";
 
@@ -15,7 +15,7 @@ const defaultMetricKeys: DeterministicForecast["metricKey"][] = [
 ];
 
 export class DefaultAnalyticsService implements AnalyticsService {
-  private readonly forecastEngine = new DeterministicForecastEngine();
+  private readonly forecastEngine = new ChampionForecastEngine();
 
   public async computeKpis(input: AnalyticsEngineInput) {
     return computeKpiSnapshot(input);

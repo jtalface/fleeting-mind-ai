@@ -85,6 +85,67 @@ export interface ConversationRepository {
   listMessages(conversationId: string): Promise<ConversationMessage[]>;
 }
 
+export interface TenantRateCardRecord {
+  tenantId: string;
+  revenuePerKm: number;
+  operatingCostPerKm: number;
+  currency: string;
+}
+
+export interface UpsertTenantRateCardInput {
+  revenuePerKm: number;
+  operatingCostPerKm: number;
+  currency?: string;
+}
+
+export interface RateCardRepository {
+  get(): Promise<TenantRateCardRecord>;
+  upsert(input: UpsertTenantRateCardInput): Promise<TenantRateCardRecord>;
+}
+
+export interface FleetMetricDailyRow {
+  tenantId: string;
+  vehicleId: string;
+  date: string;
+  revenue: number;
+  operatingCost: number;
+  fuelCost: number;
+  distanceKm: number;
+  tripCount: number;
+  idleRatioPct: number;
+  utilizationPct: number;
+}
+
+export interface FleetDailyAggregate {
+  date: string;
+  revenue: number;
+  cost: number;
+  fuelCostPerKm: number;
+  idleRatioPct: number;
+  utilizationPct: number;
+}
+
+export interface FleetMetricDailyRepository {
+  upsertMany(rows: FleetMetricDailyRow[]): Promise<void>;
+  listAggregatedByDay(window: { start: string; end: string }): Promise<FleetDailyAggregate[]>;
+}
+
+export interface ForecastEvaluationRecord {
+  tenantId: string;
+  metricKey: string;
+  algorithm: string;
+  trainedUntil: string;
+  horizonDays: number;
+  mae: number;
+  mapePct: number;
+  withinBandPct: number;
+  sampleSize: number;
+}
+
+export interface ForecastEvaluationRepository {
+  create(record: ForecastEvaluationRecord): Promise<void>;
+}
+
 export interface TenantRepositorySet {
   vehicles: VehicleRepository;
   telemetry: TelemetryRepository;
@@ -94,4 +155,7 @@ export interface TenantRepositorySet {
   insights: InsightRepository;
   conversations: ConversationRepository;
   integrationSync?: IntegrationSyncStateRepository;
+  rateCards?: RateCardRepository;
+  fleetMetricDaily?: FleetMetricDailyRepository;
+  forecastEvaluations?: ForecastEvaluationRepository;
 }

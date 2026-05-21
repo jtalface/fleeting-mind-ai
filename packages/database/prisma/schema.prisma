@@ -25,6 +25,7 @@ model Vehicle {
   trips             Trip[]
   fuelReadings      FuelReading[]
   maintenance       MaintenanceRecord[]
+  fleetMetricDaily  FleetMetricDaily[]
 
   @@unique([tenantId, vin])
   @@unique([tenantId, externalId])
@@ -123,6 +124,53 @@ model MaintenanceRecord {
   vehicle     Vehicle           @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
 
   @@index([tenantId, status, dueAt])
+}
+
+model TenantRateCard {
+  id                 String   @id @default(cuid())
+  tenantId           String   @unique
+  revenuePerKm       Float    @default(2.1)
+  operatingCostPerKm Float    @default(0.6)
+  currency           String   @default("USD")
+  effectiveFrom      DateTime @default(now())
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+}
+
+model FleetMetricDaily {
+  id             String   @id @default(cuid())
+  tenantId       String
+  vehicleId      String
+  date           DateTime @db.Date
+  revenue        Float    @default(0)
+  operatingCost  Float    @default(0)
+  fuelCost       Float    @default(0)
+  distanceKm     Float    @default(0)
+  tripCount      Int      @default(0)
+  idleRatioPct   Float    @default(0)
+  utilizationPct Float    @default(0)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  vehicle        Vehicle  @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, vehicleId, date])
+  @@index([tenantId, date])
+}
+
+model ForecastEvaluation {
+  id            String   @id @default(cuid())
+  tenantId      String
+  metricKey     String
+  algorithm     String
+  trainedUntil  DateTime
+  horizonDays   Int
+  mae           Float
+  maePct        Float
+  withinBandPct Float
+  sampleSize    Int
+  createdAt     DateTime @default(now())
+
+  @@index([tenantId, metricKey, createdAt])
 }
 
 model Insight {

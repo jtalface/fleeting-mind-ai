@@ -31,6 +31,9 @@ export async function processBatchAnalytics(
     asOf: resolved.asOf
   };
 
+  const { rebuildDailyMart } = await import("@fleetmind/analytics/daily-mart.js");
+  await rebuildDailyMart(input);
+
   const snapshot = await runtime.analytics.computeKpis(input);
   const insights = runtime.analytics.generateInsights(snapshot);
   if (insights.length > 0) {

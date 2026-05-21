@@ -26,7 +26,7 @@ const linearRegression = (y: number[]): { slope: number; intercept: number } => 
   let denominator = 0;
   for (let index = 0; index < n; index += 1) {
     const dx = index - xMean;
-    numerator += dx * (y[index] ?? 0 - yMean);
+    numerator += dx * ((y[index] ?? 0) - yMean);
     denominator += dx * dx;
   }
   const slope = denominator === 0 ? 0 : numerator / denominator;

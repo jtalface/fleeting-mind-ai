@@ -1,6 +1,8 @@
 import type { KpiSnapshot } from "@fleetmind/shared/contracts/analytics.js";
 import type { FuelReading, MetricValue, Trip, Vehicle } from "@fleetmind/shared/contracts/domain.js";
+import type { TenantRateCardRecord } from "../../database/src/repositories/contracts.js";
 import type { AnalyticsEngineInput } from "./contracts.js";
+import { resolveTenantRateCard } from "./rate-card.js";
 
 const safeDivide = (numerator: number, denominator: number): number => (denominator === 0 ? 0 : numerator / denominator);
 
@@ -29,11 +31,12 @@ const toMetric = (metricKey: MetricValue["metricKey"], value: number, asOf: stri
   };
 };
 
-const calculateVehicleRevenue = (trips: Trip[]): number => trips.reduce((sum, trip) => sum + trip.distanceKm * 2.1, 0);
+const calculateVehicleRevenue = (trips: Trip[], rateCard: TenantRateCardRecord): number =>
+  trips.reduce((sum, trip) => sum + trip.distanceKm * rateCard.revenuePerKm, 0);
 
-const calculateVehicleCosts = (trips: Trip[], fuelReadings: FuelReading[]): number => {
+const calculateVehicleCosts = (trips: Trip[], fuelReadings: FuelReading[], rateCard: TenantRateCardRecord): number => {
   const fuel = fuelReadings.reduce((sum, reading) => sum + reading.totalCost, 0);
-  const operating = trips.reduce((sum, trip) => sum + trip.distanceKm * 0.6, 0);
+  const operating = trips.reduce((sum, trip) => sum + trip.distanceKm * rateCard.operatingCostPerKm, 0);
   return fuel + operating;
 };
 
@@ -41,10 +44,11 @@ const computeVehicleMetrics = (
   vehicle: Vehicle,
   trips: Trip[],
   fuelReadings: FuelReading[],
+  rateCard: TenantRateCardRecord,
   asOf: string
 ): { vehicleId: string; metrics: MetricValue[] } => {
-  const revenue = calculateVehicleRevenue(trips);
-  const cost = calculateVehicleCosts(trips, fuelReadings);
+  const revenue = calculateVehicleRevenue(trips, rateCard);
+  const cost = calculateVehicleCosts(trips, fuelReadings, rateCard);
   const profit = revenue - cost;
   const totalDistance = trips.reduce((sum, trip) => sum + trip.distanceKm, 0);
   const totalIdleMinutes = trips.reduce((sum, trip) => sum + trip.idleMinutes, 0);
@@ -69,7 +73,10 @@ const computeVehicleMetrics = (
 
 export const computeKpiSnapshot = async (input: AnalyticsEngineInput): Promise<KpiSnapshot> => {
   const { repositories, window, asOf, tenantId } = input;
-  const vehicles = await repositories.vehicles.list();
+  const [vehicles, rateCard] = await Promise.all([
+    repositories.vehicles.list(),
+    resolveTenantRateCard(repositories, tenantId)
+  ]);
 
   const perVehicle = await Promise.all(
     vehicles.map(async (vehicle) => {
@@ -81,6 +88,7 @@ export const computeKpiSnapshot = async (input: AnalyticsEngineInput): Promise<K
         vehicle,
         trips.filter((item) => inWindow(item.endTime, window.start, window.end)),
         fuelReadings.filter((item) => inWindow(item.timestamp, window.start, window.end)),
+        rateCard,
         asOf
       );
     })

@@ -33,7 +33,7 @@ interface FlespiMessageRow {
  * Adapter for the [flespi REST API](https://flespi.com/rest-api).
  *
  * - Devices: `GET /gw/devices/all`
- * - Telemetry history: `GET /gw/devices/{id}/messages?data={"from":<unix>}`
+ * - Telemetry history: `GET /gw/devices/{id}/messages?data={"from":<unix>,"count":<n>,"reverse":false}`
  */
 export class FlespiApiClient implements FleetMetricsApiClient {
   public constructor(private readonly config: FlespiApiConfig) {}
@@ -48,14 +48,17 @@ export class FlespiApiClient implements FleetMetricsApiClient {
 
   public async fetchTelemetryPage(deviceExternalId: string, cursor?: string): Promise<ExternalTelemetryPage> {
     const url = new URL(`${FLESPI_BASE_URL}/gw/devices/${encodeURIComponent(deviceExternalId)}/messages`);
-    url.searchParams.set("limit", String(this.config.messagesPageSize));
-
+    const data: { count: number; reverse: boolean; from?: number } = {
+      count: this.config.messagesPageSize,
+      reverse: false
+    };
     if (cursor) {
       const fromUnix = Number(cursor);
       if (Number.isFinite(fromUnix)) {
-        url.searchParams.set("data", JSON.stringify({ from: fromUnix }));
+        data.from = fromUnix;
       }
     }
+    url.searchParams.set("data", JSON.stringify(data));
 
     const payload = await this.getJson<{ result?: FlespiMessageRow[] }>(url.toString());
     const messages = payload.result ?? [];

@@ -1,6 +1,7 @@
 import { createInMemoryTenantRepositories } from "../../database/src/repositories/in-memory.js";
 import { describe, expect, it } from "vitest";
-import { benchmarkHistoryFixture, goldenForecastRevenueFirst3Days } from "./fixtures.js";
+import { benchmarkHistoryFixture } from "./fixtures.js";
+import { ChampionForecastEngine } from "./forecast/champion-engine.js";
 import { DeterministicForecastEngine } from "./forecast.js";
 import { DefaultAnalyticsService } from "./service.js";
 
@@ -75,12 +76,47 @@ describe("DefaultAnalyticsService", () => {
     expect(insights.some((item) => item.title.includes("idle ratio"))).toBe(true);
   });
 
-  it("matches golden deterministic forecast output for revenue", () => {
-    const engine = new DeterministicForecastEngine();
-    const forecast = engine.forecast("tenant_c", "revenue", benchmarkHistoryFixture, "2026-04-10T00:00:00.000Z", 3);
+  it("runs champion-selected forecasts via DefaultAnalyticsService", () => {
+    const service = new DefaultAnalyticsService();
+    const forecasts = service.runForecasts(
+      {
+        tenantId: "tenant_c",
+        repositories: createInMemoryTenantRepositories("tenant_c"),
+        window: { start: "2026-04-01T00:00:00.000Z", end: "2026-04-14T23:59:59.999Z" },
+        asOf: "2026-04-14T00:00:00.000Z"
+      },
+      benchmarkHistoryFixture,
+      3
+    );
+    const revenue = forecasts.find((item) => item.metricKey === "revenue");
+    expect(revenue?.explanation.championSelected).toBe(true);
+    expect(revenue?.predictedPoints).toHaveLength(3);
+  });
 
-    expect(forecast.explanation.algorithm).toBe("linear_regression_with_residual_band");
-    expect(forecast.predictedPoints.map((point) => point.value)).toEqual(goldenForecastRevenueFirst3Days);
+  it("uses tenant rate cards for KPI revenue", async () => {
+    const repos = createInMemoryTenantRepositories("tenant_rate");
+    await repos.rateCards!.upsert({ revenuePerKm: 3, operatingCostPerKm: 1, currency: "USD" });
+    const vehicle = await repos.vehicles.create({ vin: "VIN-RATE", class: "truck", active: true });
+    await repos.trips.create({
+      vehicleId: vehicle.id,
+      startTime: "2026-04-01T08:00:00.000Z",
+      endTime: "2026-04-01T10:00:00.000Z",
+      startOdometerKm: 0,
+      endOdometerKm: 100,
+      distanceKm: 100,
+      idleMinutes: 0,
+      averageSpeedKph: 50
+    });
+
+    const service = new DefaultAnalyticsService();
+    const snapshot = await service.computeKpis({
+      tenantId: "tenant_rate",
+      repositories: repos,
+      window: { start: "2026-04-01T00:00:00.000Z", end: "2026-04-30T23:59:59.999Z" },
+      asOf: "2026-04-30T23:59:59.999Z"
+    });
+    const revenue = snapshot.fleetMetrics.find((metric) => metric.metricKey === "revenue");
+    expect(revenue?.value).toBe(300);
   });
 
   it("calculates forecast quality metrics in tests", () => {

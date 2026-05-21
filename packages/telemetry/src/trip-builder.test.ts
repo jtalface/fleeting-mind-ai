@@ -40,4 +40,51 @@ describe("buildTripsFromTelemetry", () => {
     expect(trips[0]?.endTime).toBe("2026-05-07T10:10:00.000Z");
     expect(trips[0]?.distanceKm).toBe(10);
   });
+
+  it("builds trips from GPS-only points without speed or ignition (Flespi-style)", () => {
+    const trips = buildTripsFromTelemetry([
+      point({
+        timestamp: "2026-05-07T10:00:00.000Z",
+        latitude: 32.7,
+        longitude: -114.62
+      }),
+      point({
+        timestamp: "2026-05-07T10:05:00.000Z",
+        latitude: 32.71,
+        longitude: -114.61
+      }),
+      point({
+        timestamp: "2026-05-07T10:10:00.000Z",
+        latitude: 32.72,
+        longitude: -114.6
+      })
+    ]);
+
+    expect(trips).toHaveLength(1);
+    expect(trips[0]?.distanceKm).toBeGreaterThan(0.05);
+    expect(trips[0]?.startTime).toBe("2026-05-07T10:00:00.000Z");
+    expect(trips[0]?.endTime).toBe("2026-05-07T10:10:00.000Z");
+  });
+
+  it("drops GPS-only segments with negligible movement (parked jitter)", () => {
+    const trips = buildTripsFromTelemetry([
+      point({
+        timestamp: "2026-05-07T10:00:00.000Z",
+        latitude: 32.7,
+        longitude: -114.62
+      }),
+      point({
+        timestamp: "2026-05-07T10:05:00.000Z",
+        latitude: 32.70001,
+        longitude: -114.62001
+      }),
+      point({
+        timestamp: "2026-05-07T10:10:00.000Z",
+        latitude: 32.70002,
+        longitude: -114.62002
+      })
+    ]);
+
+    expect(trips).toHaveLength(0);
+  });
 });

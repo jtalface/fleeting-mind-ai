@@ -5,6 +5,17 @@ const prisma = new PrismaClient();
 async function main() {
   const tenantId = "tenant_demo";
 
+  await prisma.tenantRateCard.upsert({
+    where: { tenantId },
+    update: {},
+    create: {
+      tenantId,
+      revenuePerKm: 2.1,
+      operatingCostPerKm: 0.6,
+      currency: "USD"
+    }
+  });
+
   const vehicle = await prisma.vehicle.upsert({
     where: {
       tenantId_vin: {
