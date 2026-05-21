@@ -15,7 +15,16 @@ Monorepo foundation for a production-grade SaaS platform that ingests telemetry,
 | API | http://localhost:4000/health |
 | Chat | http://localhost:5173/chat |
 | Insights | http://localhost:5173/insights |
+| Predictions | http://localhost:5173/predictions |
 | Map | http://localhost:5173/map |
+
+**Migrations** (from repo root, uses `.env`):
+
+```bash
+pnpm --filter @fleetmind/database prisma:migrate:deploy
+```
+
+**LLM insights** — set `OPENAI_API_KEY` and optionally `LLM_MODEL` (e.g. `gpt-5-nano`). On startup the API logs `Insights: LLM (...)` or `Insights: rules`. Insights are narrated from KPI + forecast snapshots; KPIs and forecasts stay deterministic.
 
 ### First Flespi sync (after `dev:all` is running)
 
@@ -26,6 +35,18 @@ curl -X POST http://localhost:4000/v1/integrations/backfill \
   -H "Content-Type: application/json" \
   -d '{"deviceNameIncludes":"Sweeper","lookbackDays":7,"maxPagesPerDevice":3}'
 ```
+
+### Score forecasts (Predictions tab)
+
+```bash
+curl -X POST http://localhost:4000/v1/predictions/refresh \
+  -H "x-tenant-id: tenant_demo" \
+  -H "x-user-id: user_local" \
+  -H "Content-Type: application/json" \
+  -d '{"horizonDays":7,"lookbackDays":7}'
+```
+
+Then open **Predictions** in the web app or `GET /v1/predictions`.
 
 ## Architecture and Agent Handoff
 
