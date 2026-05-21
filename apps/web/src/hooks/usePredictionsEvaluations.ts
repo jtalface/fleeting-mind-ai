@@ -1,23 +1,18 @@
-import type { PredictionsListResult } from "@fleetmind/shared";
+import type { ForecastEvaluationListResult } from "@fleetmind/shared";
 import { useCallback, useEffect, useState } from "react";
 import type { ApiClientConfig } from "../api/client.js";
-import { ApiClientError, getPredictions } from "../api/client.js";
+import { ApiClientError, getPredictionsEvaluations } from "../api/client.js";
 
-export interface UsePredictionsOptions {
-  horizonDays?: number;
-  scopeType?: "fleet" | "segment";
-  scopeKey?: string;
-}
-
-export interface UsePredictionsResult {
-  result: PredictionsListResult | undefined;
+export function usePredictionsEvaluations(
+  cfg: ApiClientConfig,
+  options: { limit?: number; scopeType?: "fleet" | "segment"; scopeKey?: string } = {}
+): {
+  result: ForecastEvaluationListResult | undefined;
   loading: boolean;
   error: ApiClientError | undefined;
   refresh: () => Promise<void>;
-}
-
-export function usePredictions(cfg: ApiClientConfig, options: UsePredictionsOptions = {}): UsePredictionsResult {
-  const [result, setResult] = useState<PredictionsListResult | undefined>();
+} {
+  const [result, setResult] = useState<ForecastEvaluationListResult | undefined>();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<ApiClientError | undefined>();
 
@@ -25,9 +20,8 @@ export function usePredictions(cfg: ApiClientConfig, options: UsePredictionsOpti
     setLoading(true);
     setError(undefined);
     try {
-      const data = await getPredictions(cfg, {
-        horizonDays: options.horizonDays ?? 7,
-        lookbackDays: 7,
+      const data = await getPredictionsEvaluations(cfg, {
+        limit: options.limit ?? 20,
         ...(options.scopeType ? { scopeType: options.scopeType } : {}),
         ...(options.scopeKey ? { scopeKey: options.scopeKey } : {})
       });
@@ -41,7 +35,7 @@ export function usePredictions(cfg: ApiClientConfig, options: UsePredictionsOpti
     } finally {
       setLoading(false);
     }
-  }, [cfg, options.horizonDays, options.scopeType, options.scopeKey]);
+  }, [cfg, options.limit, options.scopeType, options.scopeKey]);
 
   useEffect(() => {
     void refresh();

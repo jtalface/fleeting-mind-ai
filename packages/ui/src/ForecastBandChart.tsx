@@ -1,9 +1,11 @@
 import type { ForecastPoint } from "@fleetmind/shared";
+import type { PredictionHistoryPoint } from "@fleetmind/shared/contracts/predictions.js";
 import {
   CartesianGrid,
   ComposedChart,
   Legend,
   Line,
+  ReferenceLine,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -13,16 +15,36 @@ import {
 export interface ForecastBandChartProps {
   title: string;
   points: ForecastPoint[];
+  historyActuals?: PredictionHistoryPoint[];
+  trainedUntil?: string;
   height?: number;
 }
 
-export function ForecastBandChart({ title, points, height = 240 }: ForecastBandChartProps): JSX.Element {
-  const data = points.map((p) => ({
-    date: p.date.slice(5),
-    value: p.value,
-    upper: p.upperBound,
-    lower: p.lowerBound
-  }));
+export function ForecastBandChart({
+  title,
+  points,
+  historyActuals = [],
+  trainedUntil,
+  height = 240
+}: ForecastBandChartProps): JSX.Element {
+  const byDate = new Map<string, { date: string; actual?: number; value?: number; upper?: number; lower?: number }>();
+
+  for (const row of historyActuals) {
+    byDate.set(row.date.slice(5), { date: row.date.slice(5), actual: row.actual });
+  }
+  for (const p of points) {
+    const key = p.date.slice(5);
+    const existing = byDate.get(key) ?? { date: key };
+    byDate.set(key, {
+      ...existing,
+      value: p.value,
+      upper: p.upperBound,
+      lower: p.lowerBound
+    });
+  }
+
+  const data = [...byDate.values()].sort((a, b) => a.date.localeCompare(b.date));
+  const trainedLabel = trainedUntil?.slice(5);
 
   const lineStyle = { strokeWidth: 2, dot: false };
 
@@ -45,9 +67,27 @@ export function ForecastBandChart({ title, points, height = 240 }: ForecastBandC
             }}
           />
           <Legend wrapperStyle={{ fontSize: "11px", color: "var(--fm-color-text-muted)" }} />
-          <Line name="P90" type="monotone" dataKey="upper" stroke="var(--fm-color-text-muted)" strokeDasharray="4 4" {...lineStyle} />
-          <Line name="P50" type="monotone" dataKey="value" stroke="var(--fm-color-accent)" {...lineStyle} />
-          <Line name="P10" type="monotone" dataKey="lower" stroke="var(--fm-color-text-muted)" strokeDasharray="4 4" {...lineStyle} />
+          {trainedLabel ? (
+            <ReferenceLine
+              x={trainedLabel}
+              stroke="var(--fm-color-warning)"
+              strokeDasharray="3 3"
+              label={{ value: "trained", position: "insideTopRight", fill: "var(--fm-color-text-muted)", fontSize: 10 }}
+            />
+          ) : null}
+          {historyActuals.length > 0 ? (
+            <Line
+              name="Actual"
+              type="monotone"
+              dataKey="actual"
+              stroke="var(--fm-color-success)"
+              connectNulls
+              {...lineStyle}
+            />
+          ) : null}
+          <Line name="P90" type="monotone" dataKey="upper" stroke="var(--fm-color-text-muted)" strokeDasharray="4 4" connectNulls {...lineStyle} />
+          <Line name="P50" type="monotone" dataKey="value" stroke="var(--fm-color-accent)" connectNulls {...lineStyle} />
+          <Line name="P10" type="monotone" dataKey="lower" stroke="var(--fm-color-text-muted)" strokeDasharray="4 4" connectNulls {...lineStyle} />
         </ComposedChart>
       </ResponsiveContainer>
     </div>

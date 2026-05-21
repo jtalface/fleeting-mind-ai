@@ -17,7 +17,7 @@ const tenantScopedJobBaseSchema = z.object({
   idempotencyKey: z.string().min(1).optional()
 });
 
-const windowPresetSchema = z.enum(["explicit", "last_24h_utc"]);
+const windowPresetSchema = z.enum(["explicit", "last_24h_utc", "last_7d_utc"]);
 
 export const batchAnalyticsJobPayloadSchema = tenantScopedJobBaseSchema.extend({
   asOf: z.string(),

@@ -3,6 +3,7 @@ import type { PredictionBundle, PredictionScopeType } from "@fleetmind/shared/co
 import type {
   PredictionRunRecord,
   PredictionRunRepository,
+  PredictionRunStored,
   TenantRepositorySet
 } from "../../database/src/repositories/contracts.js";
 import type { PredictionScopeDefinition } from "./prediction-scopes.js";
@@ -38,17 +39,22 @@ function toRunRecord(
 export async function persistPredictionBatches(
   repositories: TenantRepositorySet,
   batches: ScopedForecastBatch[]
-): Promise<void> {
+): Promise<PredictionRunStored[]> {
   const repo = repositories.predictionRuns;
   if (!repo) {
-    return;
+    return [];
   }
 
+  const appended: PredictionRunStored[] = [];
   for (const batch of batches) {
     for (const forecast of batch.forecasts) {
-      await repo.replaceRun(toRunRecord(batch.scope, forecast));
+      const stored = await repo.appendRun(toRunRecord(batch.scope, forecast));
+      appended.push(stored);
     }
   }
+
+  await repo.pruneOldRuns({ maxPerSeries: 24 });
+  return appended;
 }
 
 export function bundlesFromRuns(

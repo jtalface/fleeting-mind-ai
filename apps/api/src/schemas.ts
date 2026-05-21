@@ -58,9 +58,30 @@ export const integrationSyncBodySchema = z.object({
 
 export const predictionsListQuerySchema = z.object({
   horizonDays: z.coerce.number().int().min(1).max(90).default(7),
+  lookbackDays: z.coerce.number().int().min(1).max(90).default(7),
   scopeType: z.enum(["fleet", "segment"]).optional(),
   scopeKey: z.string().min(1).optional(),
-  metricKey: z.string().min(1).optional()
+  metricKey: z.string().min(1).optional(),
+  includeHistory: z
+    .enum(["true", "false"])
+    .optional()
+    .transform((v) => v !== "false")
+});
+
+export const predictionsEvaluationsQuerySchema = z.object({
+  limit: z.coerce.number().int().min(1).max(100).default(30),
+  metricKey: z.string().min(1).optional(),
+  scopeType: z.enum(["fleet", "segment"]).optional(),
+  scopeKey: z.string().min(1).optional()
+});
+
+export const predictionsForwardAccuracyQuerySchema = z.object({
+  limit: z.coerce.number().int().min(1).max(100).default(20)
+});
+
+export const predictionsEvaluationTrendsQuerySchema = z.object({
+  limit: z.coerce.number().int().min(1).max(200).default(60),
+  evaluationKind: z.enum(["holdout", "forward"]).optional()
 });
 
 export const predictionsRefreshBodySchema = z.object({

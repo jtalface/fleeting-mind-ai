@@ -158,19 +158,27 @@ model FleetMetricDaily {
 }
 
 model ForecastEvaluation {
-  id            String   @id @default(cuid())
-  tenantId      String
-  metricKey     String
-  algorithm     String
-  trainedUntil  DateTime
-  horizonDays   Int
-  mae           Float
-  maePct        Float
-  withinBandPct Float
-  sampleSize    Int
-  createdAt     DateTime @default(now())
+  id              String              @id @default(cuid())
+  tenantId        String
+  scopeType       PredictionScopeType @default(fleet)
+  scopeKey        String              @default("fleet")
+  metricKey       String
+  algorithm       String
+  trainedUntil    DateTime
+  horizonDays     Int
+  evaluationKind  String              @default("holdout")
+  runId           String?
+  mae             Float
+  maePct          Float
+  withinBandPct   Float
+  sampleSize      Int
+  createdAt       DateTime            @default(now())
 
+  @@unique([tenantId, scopeType, scopeKey, metricKey, horizonDays, evaluationKind, trainedUntil])
   @@index([tenantId, metricKey, createdAt])
+  @@index([tenantId, scopeType, scopeKey, createdAt])
+  @@index([tenantId, evaluationKind, createdAt])
+  @@index([runId])
 }
 
 enum PredictionScopeType {

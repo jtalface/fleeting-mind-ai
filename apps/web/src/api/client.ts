@@ -5,9 +5,15 @@ import type {
   ApiChatResponse,
   ApiErrorEnvelope,
   ApiFleetLocationsResponse,
+  ApiPredictionsEvaluationTrendsResponse,
+  ApiPredictionsEvaluationsResponse,
+  ApiPredictionsForwardAccuracyResponse,
   ApiPredictionsListResponse,
+  EvaluationTrendsResult,
+  ForwardAccuracyListResult,
   ApiPredictionsRefreshRequest,
   ApiPredictionsRefreshResponse,
+  ForecastEvaluationListResult,
   ApiTenantRateCardResponse,
   ApiTenantRateCardUpsertRequest,
   PredictionsListResult
@@ -102,6 +108,7 @@ export async function getFleetLocations(
 
 export interface GetPredictionsQuery {
   horizonDays?: number;
+  lookbackDays?: number;
   scopeType?: "fleet" | "segment";
   scopeKey?: string;
   metricKey?: string;
@@ -143,6 +150,9 @@ export async function getPredictions(
   if (query.horizonDays !== undefined) {
     params.set("horizonDays", String(query.horizonDays));
   }
+  if (query.lookbackDays !== undefined) {
+    params.set("lookbackDays", String(query.lookbackDays));
+  }
   if (query.scopeType) {
     params.set("scopeType", query.scopeType);
   }
@@ -171,6 +181,93 @@ export async function getPredictions(
     });
   }
 
+  return payload.data;
+}
+
+export async function getPredictionsForwardAccuracy(
+  cfg: ApiClientConfig,
+  query: { limit?: number } = {}
+): Promise<ForwardAccuracyListResult> {
+  const fetchFn = cfg.fetchImpl ?? fetch;
+  const params = new URLSearchParams();
+  if (query.limit !== undefined) {
+    params.set("limit", String(query.limit));
+  }
+  const qs = params.toString();
+  const url = `${cfg.baseUrl.replace(/\/$/, "")}/v1/predictions/forward-accuracy${qs ? `?${qs}` : ""}`;
+  const res = await fetchFn(url, { method: "GET", headers: buildHeaders(cfg) });
+  const payload = await parseJson<ApiPredictionsForwardAccuracyResponse | ApiErrorEnvelope>(res);
+  if (!res.ok || "error" in payload) {
+    const err = "error" in payload ? payload.error : { code: "UNKNOWN", message: res.statusText, requestId: "" };
+    throw new ApiClientError(err.message, {
+      code: err.code,
+      requestId: err.requestId,
+      status: res.status,
+      details: "details" in err ? err.details : undefined
+    });
+  }
+  return payload.data;
+}
+
+export async function getPredictionsEvaluationTrends(
+  cfg: ApiClientConfig,
+  query: { limit?: number; evaluationKind?: "holdout" | "forward" } = {}
+): Promise<EvaluationTrendsResult> {
+  const fetchFn = cfg.fetchImpl ?? fetch;
+  const params = new URLSearchParams();
+  if (query.limit !== undefined) {
+    params.set("limit", String(query.limit));
+  }
+  if (query.evaluationKind) {
+    params.set("evaluationKind", query.evaluationKind);
+  }
+  const qs = params.toString();
+  const url = `${cfg.baseUrl.replace(/\/$/, "")}/v1/predictions/evaluation-trends${qs ? `?${qs}` : ""}`;
+  const res = await fetchFn(url, { method: "GET", headers: buildHeaders(cfg) });
+  const payload = await parseJson<ApiPredictionsEvaluationTrendsResponse | ApiErrorEnvelope>(res);
+  if (!res.ok || "error" in payload) {
+    const err = "error" in payload ? payload.error : { code: "UNKNOWN", message: res.statusText, requestId: "" };
+    throw new ApiClientError(err.message, {
+      code: err.code,
+      requestId: err.requestId,
+      status: res.status,
+      details: "details" in err ? err.details : undefined
+    });
+  }
+  return payload.data;
+}
+
+export async function getPredictionsEvaluations(
+  cfg: ApiClientConfig,
+  query: { limit?: number; metricKey?: string; scopeType?: "fleet" | "segment"; scopeKey?: string } = {}
+): Promise<ForecastEvaluationListResult> {
+  const fetchFn = cfg.fetchImpl ?? fetch;
+  const params = new URLSearchParams();
+  if (query.limit !== undefined) {
+    params.set("limit", String(query.limit));
+  }
+  if (query.metricKey) {
+    params.set("metricKey", query.metricKey);
+  }
+  if (query.scopeType) {
+    params.set("scopeType", query.scopeType);
+  }
+  if (query.scopeKey) {
+    params.set("scopeKey", query.scopeKey);
+  }
+  const qs = params.toString();
+  const url = `${cfg.baseUrl.replace(/\/$/, "")}/v1/predictions/evaluations${qs ? `?${qs}` : ""}`;
+  const res = await fetchFn(url, { method: "GET", headers: buildHeaders(cfg) });
+  const payload = await parseJson<ApiPredictionsEvaluationsResponse | ApiErrorEnvelope>(res);
+  if (!res.ok || "error" in payload) {
+    const err = "error" in payload ? payload.error : { code: "UNKNOWN", message: res.statusText, requestId: "" };
+    throw new ApiClientError(err.message, {
+      code: err.code,
+      requestId: err.requestId,
+      status: res.status,
+      details: "details" in err ? err.details : undefined
+    });
+  }
   return payload.data;
 }
 

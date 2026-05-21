@@ -6,9 +6,15 @@ export interface WorkerEnv {
   schedulerEnabled: boolean;
   /** Comma-separated tenant IDs for repeatable enqueue (optional). */
   scheduledTenantIds: string[];
+  /** Rolling UTC window for scheduled analytics + forecast jobs (matches API default). */
+  scheduledLookbackDays: number;
+  scheduledForecastHorizonDays: number;
   cronBatchAnalytics: string;
   cronForecastRefresh: string;
   cronIntegrationSync: string;
+  cronDeepBackfill: string;
+  deepBackfillLookbackDays: number;
+  deepBackfillDeviceNameIncludes?: string;
 }
 
 const splitCsv = (value: string | undefined): string[] =>
@@ -26,8 +32,18 @@ export function loadWorkerEnv(env: NodeJS.ProcessEnv = process.env): WorkerEnv {
     redisTls: env.REDIS_TLS === "1" || env.REDIS_TLS === "true",
     schedulerEnabled: env.WORKER_SCHEDULER_ENABLED === "1" || env.WORKER_SCHEDULER_ENABLED === "true",
     scheduledTenantIds: splitCsv(env.WORKER_SCHEDULED_TENANT_IDS),
-    cronBatchAnalytics: env.WORKER_CRON_BATCH_ANALYTICS ?? "0 */6 * * *",
-    cronForecastRefresh: env.WORKER_CRON_FORECAST_REFRESH ?? "15 */6 * * *",
-    cronIntegrationSync: env.WORKER_CRON_INTEGRATION_SYNC ?? "30 */6 * * *"
+    scheduledLookbackDays: Math.min(90, Math.max(1, Number(env.WORKER_SCHEDULED_LOOKBACK_DAYS ?? "7") || 7)),
+    scheduledForecastHorizonDays: Math.min(
+      365,
+      Math.max(1, Number(env.WORKER_SCHEDULED_FORECAST_HORIZON_DAYS ?? "7") || 7)
+    ),
+    cronIntegrationSync: env.WORKER_CRON_INTEGRATION_SYNC ?? "0 */6 * * *",
+    cronBatchAnalytics: env.WORKER_CRON_BATCH_ANALYTICS ?? "15 */6 * * *",
+    cronForecastRefresh: env.WORKER_CRON_FORECAST_REFRESH ?? "30 */6 * * *",
+    cronDeepBackfill: env.WORKER_CRON_DEEP_BACKFILL ?? "0 3 * * 0",
+    deepBackfillLookbackDays: Math.min(90, Math.max(7, Number(env.WORKER_DEEP_BACKFILL_LOOKBACK_DAYS ?? "30") || 30)),
+    ...(env.WORKER_DEEP_BACKFILL_DEVICE_INCLUDES?.trim()
+      ? { deepBackfillDeviceNameIncludes: env.WORKER_DEEP_BACKFILL_DEVICE_INCLUDES.trim() }
+      : { deepBackfillDeviceNameIncludes: "Sweeper" })
   };
 }

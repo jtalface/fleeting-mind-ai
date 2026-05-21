@@ -7,21 +7,28 @@ export interface ResolvedWindow {
 }
 
 interface WindowFields {
-  windowPreset: "explicit" | "last_24h_utc";
+  windowPreset: "explicit" | "last_24h_utc" | "last_7d_utc";
   windowStart?: string;
   windowEnd?: string;
   asOf: string;
 }
 
+const rollingUtcWindow = (jobTimestampMs: number, lookbackMs: number): ResolvedWindow => {
+  const end = new Date(jobTimestampMs);
+  const start = new Date(jobTimestampMs - lookbackMs);
+  return {
+    start: start.toISOString(),
+    end: end.toISOString(),
+    asOf: end.toISOString()
+  };
+};
+
 export function resolveTenantJobWindow(payload: WindowFields, jobTimestampMs: number): ResolvedWindow {
   if (payload.windowPreset === "last_24h_utc") {
-    const end = new Date(jobTimestampMs);
-    const start = new Date(jobTimestampMs - 24 * 60 * 60 * 1000);
-    return {
-      start: start.toISOString(),
-      end: end.toISOString(),
-      asOf: end.toISOString()
-    };
+    return rollingUtcWindow(jobTimestampMs, 24 * 60 * 60 * 1000);
+  }
+  if (payload.windowPreset === "last_7d_utc") {
+    return rollingUtcWindow(jobTimestampMs, 7 * 24 * 60 * 60 * 1000);
   }
 
   return {

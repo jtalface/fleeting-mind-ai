@@ -18,7 +18,10 @@ import type {
   CreateVehicleInput,
   FleetDailyAggregate,
   FleetMetricDailyRow,
+  ForecastEvaluationKind,
   ForecastEvaluationRecord,
+  ForecastEvaluationStored,
+  ListMaturePredictionRunsQuery,
   IntegrationSyncStateRecord,
   ListLatestPredictionRunsQuery,
   PredictionRunRecord,
@@ -386,6 +389,83 @@ const mapMessage = (row: ConversationMessageRow): ConversationMessage => ({
   createdAt: row.createdAt.toISOString()
 });
 
+type ForecastEvaluationRowDb = {
+  id: string;
+  tenantId: string;
+  scopeType: string;
+  scopeKey: string;
+  metricKey: string;
+  algorithm: string;
+  trainedUntil: Date;
+  horizonDays: number;
+  evaluationKind: string;
+  runId: string | null;
+  mae: number;
+  maePct: number;
+  withinBandPct: number;
+  sampleSize: number;
+  createdAt: Date;
+};
+
+const mapForecastEvaluation = (row: ForecastEvaluationRowDb): ForecastEvaluationStored => ({
+  id: row.id,
+  tenantId: row.tenantId,
+  scopeType: row.scopeType as ForecastEvaluationRecord["scopeType"],
+  scopeKey: row.scopeKey,
+  metricKey: row.metricKey,
+  algorithm: row.algorithm,
+  trainedUntil: row.trainedUntil.toISOString(),
+  horizonDays: row.horizonDays,
+  evaluationKind: row.evaluationKind as ForecastEvaluationKind,
+  ...(row.runId ? { runId: row.runId } : {}),
+  mae: row.mae,
+  mapePct: row.maePct,
+  withinBandPct: row.withinBandPct,
+  sampleSize: row.sampleSize,
+  createdAt: row.createdAt.toISOString()
+});
+
+type PredictionRunRowDb = {
+  id: string;
+  tenantId: string;
+  scopeType: string;
+  scopeKey: string;
+  nameIncludes: string | null;
+  metricKey: string;
+  algorithm: string;
+  trainedUntil: Date;
+  horizonDays: number;
+  sampleSize: number;
+  backtestMapePct: number | null;
+  championSelected: boolean;
+  explanationJson: string;
+  createdAt: Date;
+  points: PredictionPointRowDb[];
+};
+
+const mapPredictionRun = (row: PredictionRunRowDb): PredictionRunStored => ({
+  id: row.id,
+  tenantId: row.tenantId,
+  scopeType: row.scopeType as PredictionRunStored["scopeType"],
+  scopeKey: row.scopeKey,
+  ...(row.nameIncludes ? { nameIncludes: row.nameIncludes } : {}),
+  metricKey: row.metricKey as PredictionRunStored["metricKey"],
+  algorithm: row.algorithm,
+  trainedUntil: row.trainedUntil.toISOString(),
+  horizonDays: row.horizonDays,
+  sampleSize: row.sampleSize,
+  ...(row.backtestMapePct !== null ? { backtestMapePct: row.backtestMapePct } : {}),
+  championSelected: row.championSelected,
+  explanation: JSON.parse(row.explanationJson) as PredictionRunStored["explanation"],
+  createdAt: row.createdAt.toISOString(),
+  points: row.points.map((point) => ({
+    date: point.date.toISOString().slice(0, 10),
+    p10: point.p10,
+    p50: point.p50,
+    p90: point.p90
+  }))
+});
+
 export const createPrismaTenantRepositories = (tenantId: string, db: PrismaDbClient): TenantRepositorySet => ({
   vehicles: {
     create: async (input: CreateVehicleInput): Promise<Vehicle> =>
@@ -724,60 +804,178 @@ export const createPrismaTenantRepositories = (tenantId: string, db: PrismaDbCli
     }
   },
   forecastEvaluations: {
-    create: async (record: ForecastEvaluationRecord): Promise<void> => {
-      await db.forecastEvaluation.create({
-        data: {
+    upsert: async (record: ForecastEvaluationRecord): Promise<ForecastEvaluationStored> => {
+      const row = await db.forecastEvaluation.upsert({
+        where: {
+          tenantId_scopeType_scopeKey_metricKey_horizonDays_evaluationKind_trainedUntil: {
+            tenantId,
+            scopeType: record.scopeType,
+            scopeKey: record.scopeKey,
+            metricKey: record.metricKey,
+            horizonDays: record.horizonDays,
+            evaluationKind: record.evaluationKind,
+            trainedUntil: new Date(record.trainedUntil)
+          }
+        },
+        create: {
           tenantId,
+          scopeType: record.scopeType,
+          scopeKey: record.scopeKey,
           metricKey: record.metricKey,
           algorithm: record.algorithm,
           trainedUntil: new Date(record.trainedUntil),
           horizonDays: record.horizonDays,
+          evaluationKind: record.evaluationKind,
+          runId: record.runId ?? null,
+          mae: record.mae,
+          maePct: record.mapePct,
+          withinBandPct: record.withinBandPct,
+          sampleSize: record.sampleSize
+        },
+        update: {
+          algorithm: record.algorithm,
+          runId: record.runId ?? null,
           mae: record.mae,
           maePct: record.mapePct,
           withinBandPct: record.withinBandPct,
           sampleSize: record.sampleSize
         }
       });
+      return mapForecastEvaluation(row);
+    },
+    listRecent: async (query = {}): Promise<ForecastEvaluationStored[]> => {
+      const rows = await db.forecastEvaluation.findMany({
+        where: {
+          tenantId,
+          ...(query.metricKey ? { metricKey: query.metricKey } : {}),
+          ...(query.scopeType ? { scopeType: query.scopeType } : {}),
+          ...(query.scopeKey ? { scopeKey: query.scopeKey } : {}),
+          ...(query.evaluationKind ? { evaluationKind: query.evaluationKind } : {})
+        },
+        orderBy: { createdAt: "desc" },
+        take: query.limit ?? 30
+      });
+      return rows.map(mapForecastEvaluation);
+    },
+    listTrends: async (query = {}): Promise<ForecastEvaluationStored[]> => {
+      const rows = await db.forecastEvaluation.findMany({
+        where: {
+          tenantId,
+          ...(query.evaluationKind ? { evaluationKind: query.evaluationKind } : {})
+        },
+        orderBy: { createdAt: "asc" },
+        take: query.limit ?? 60
+      });
+      return rows.map(mapForecastEvaluation);
     }
   },
   predictionRuns: {
-    replaceRun: async (record: PredictionRunRecord): Promise<void> => {
-      await db.$transaction(async (tx) => {
-        await tx.predictionRun.deleteMany({
-          where: {
-            tenantId,
-            scopeType: record.scopeType,
-            scopeKey: record.scopeKey,
-            metricKey: record.metricKey,
-            horizonDays: record.horizonDays
+    appendRun: async (record: PredictionRunRecord): Promise<PredictionRunStored> => {
+      const row = await db.predictionRun.create({
+        data: {
+          tenantId,
+          scopeType: record.scopeType,
+          scopeKey: record.scopeKey,
+          nameIncludes: record.nameIncludes ?? null,
+          metricKey: record.metricKey,
+          algorithm: record.algorithm,
+          trainedUntil: new Date(record.trainedUntil),
+          horizonDays: record.horizonDays,
+          sampleSize: record.sampleSize,
+          backtestMapePct: record.backtestMapePct ?? null,
+          championSelected: record.championSelected,
+          explanationJson: JSON.stringify(record.explanation),
+          points: {
+            create: record.points.map((point) => ({
+              tenantId,
+              date: toDateOnly(point.date),
+              p10: point.p10,
+              p50: point.p50,
+              p90: point.p90
+            }))
           }
-        });
-        await tx.predictionRun.create({
-          data: {
-            tenantId,
-            scopeType: record.scopeType,
-            scopeKey: record.scopeKey,
-            nameIncludes: record.nameIncludes ?? null,
-            metricKey: record.metricKey,
-            algorithm: record.algorithm,
-            trainedUntil: new Date(record.trainedUntil),
-            horizonDays: record.horizonDays,
-            sampleSize: record.sampleSize,
-            backtestMapePct: record.backtestMapePct ?? null,
-            championSelected: record.championSelected,
-            explanationJson: JSON.stringify(record.explanation),
-            points: {
-              create: record.points.map((point) => ({
-                tenantId,
-                date: toDateOnly(point.date),
-                p10: point.p10,
-                p50: point.p50,
-                p90: point.p90
-              }))
-            }
-          }
-        });
+        },
+        include: { points: { orderBy: { date: "asc" } } }
       });
+      return mapPredictionRun(row);
+    },
+    replaceRun: async (record: PredictionRunRecord): Promise<PredictionRunStored> => {
+      const row = await db.predictionRun.create({
+        data: {
+          tenantId,
+          scopeType: record.scopeType,
+          scopeKey: record.scopeKey,
+          nameIncludes: record.nameIncludes ?? null,
+          metricKey: record.metricKey,
+          algorithm: record.algorithm,
+          trainedUntil: new Date(record.trainedUntil),
+          horizonDays: record.horizonDays,
+          sampleSize: record.sampleSize,
+          backtestMapePct: record.backtestMapePct ?? null,
+          championSelected: record.championSelected,
+          explanationJson: JSON.stringify(record.explanation),
+          points: {
+            create: record.points.map((point) => ({
+              tenantId,
+              date: toDateOnly(point.date),
+              p10: point.p10,
+              p50: point.p50,
+              p90: point.p90
+            }))
+          }
+        },
+        include: { points: { orderBy: { date: "asc" } } }
+      });
+      return mapPredictionRun(row);
+    },
+    pruneOldRuns: async (options = {}): Promise<number> => {
+      const maxPerSeries = options.maxPerSeries ?? 24;
+      const rows = await db.predictionRun.findMany({
+        where: { tenantId },
+        orderBy: { createdAt: "desc" },
+        select: { id: true, scopeType: true, scopeKey: true, metricKey: true, horizonDays: true, createdAt: true }
+      });
+      const keep = new Set<string>();
+      const counts = new Map<string, number>();
+      for (const row of rows) {
+        const key = `${row.scopeType}:${row.scopeKey}:${row.metricKey}:${row.horizonDays}`;
+        const count = counts.get(key) ?? 0;
+        if (count < maxPerSeries) {
+          keep.add(row.id);
+          counts.set(key, count + 1);
+        }
+      }
+      const deleteIds = rows.filter((row) => !keep.has(row.id)).map((row) => row.id);
+      if (deleteIds.length === 0) {
+        return 0;
+      }
+      const result = await db.predictionRun.deleteMany({ where: { id: { in: deleteIds } } });
+      return result.count;
+    },
+    listMature: async (query: ListMaturePredictionRunsQuery = {}): Promise<PredictionRunStored[]> => {
+      const today = new Date().toISOString().slice(0, 10);
+      const rows = await db.predictionRun.findMany({
+        where: {
+          tenantId,
+          ...(query.horizonDays ? { horizonDays: query.horizonDays } : {})
+        },
+        include: { points: { orderBy: { date: "asc" } } },
+        orderBy: { createdAt: "desc" },
+        take: (query.limit ?? 50) * 3
+      });
+
+      const mature: PredictionRunStored[] = [];
+      for (const row of rows) {
+        const mapped = mapPredictionRun(row);
+        const lastDate = mapped.points[mapped.points.length - 1]?.date?.slice(0, 10);
+        if (lastDate && lastDate < today && mapped.points.length > 0) {
+          mature.push(mapped);
+        }
+        if (mature.length >= (query.limit ?? 50)) {
+          break;
+        }
+      }
+      return mature;
     },
     listLatest: async (query: ListLatestPredictionRunsQuery): Promise<PredictionRunStored[]> => {
       const rows = await db.predictionRun.findMany({
@@ -800,28 +998,7 @@ export const createPrismaTenantRepositories = (tenantId: string, db: PrismaDbCli
           continue;
         }
         seen.add(key);
-        latest.push({
-          id: row.id,
-          tenantId: row.tenantId,
-          scopeType: row.scopeType as PredictionRunStored["scopeType"],
-          scopeKey: row.scopeKey,
-          ...(row.nameIncludes ? { nameIncludes: row.nameIncludes } : {}),
-          metricKey: row.metricKey as PredictionRunStored["metricKey"],
-          algorithm: row.algorithm,
-          trainedUntil: row.trainedUntil.toISOString(),
-          horizonDays: row.horizonDays,
-          sampleSize: row.sampleSize,
-          ...(row.backtestMapePct !== null ? { backtestMapePct: row.backtestMapePct } : {}),
-          championSelected: row.championSelected,
-          explanation: JSON.parse(row.explanationJson) as PredictionRunStored["explanation"],
-          createdAt: row.createdAt.toISOString(),
-          points: row.points.map((point: PredictionPointRowDb) => ({
-            date: point.date.toISOString().slice(0, 10),
-            p10: point.p10,
-            p50: point.p50,
-            p90: point.p90
-          }))
-        });
+        latest.push(mapPredictionRun(row));
       }
       return latest;
     }

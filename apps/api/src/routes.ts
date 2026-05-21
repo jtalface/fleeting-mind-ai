@@ -11,6 +11,9 @@ import {
   shouldExcludeLegacyRuleBasedInsights
 } from "../../../packages/analytics/src/prune-legacy-insights.js";
 import { listCachedPredictions } from "../../../packages/analytics/src/list-predictions.js";
+import { listEvaluationTrends } from "../../../packages/analytics/src/list-evaluation-trends.js";
+import { listForecastEvaluations } from "../../../packages/analytics/src/list-forecast-evaluations.js";
+import { listForwardAccuracy } from "../../../packages/analytics/src/forward-accuracy.js";
 import { refreshCachedPredictions } from "../../../packages/analytics/src/refresh-predictions.js";
 import type {
   ApiAnalyticsQueryResponse,
@@ -21,6 +24,9 @@ import type {
   ApiIntegrationPreviewResponse,
   ApiIntegrationStatusResponse,
   ApiIntegrationSyncResponse,
+  ApiPredictionsEvaluationsResponse,
+  ApiPredictionsEvaluationTrendsResponse,
+  ApiPredictionsForwardAccuracyResponse,
   ApiPredictionsListResponse,
   ApiPredictionsRefreshResponse,
   ApiTelemetryIngestResponse,
@@ -35,6 +41,9 @@ import {
   chatBodySchema,
   integrationBackfillBodySchema,
   integrationSyncBodySchema,
+  predictionsEvaluationTrendsQuerySchema,
+  predictionsEvaluationsQuerySchema,
+  predictionsForwardAccuracyQuerySchema,
   predictionsListQuerySchema,
   predictionsRefreshBodySchema,
   telemetryIngestBodySchema,
@@ -138,7 +147,7 @@ export function buildRoutes(runtime: ApiRuntime): Router {
       );
       const generatedInsights = await tenantRuntime.analyticsService.generateInsights(
         kpis,
-        buildInsightGenerationContext(forecasts)
+        buildInsightGenerationContext(forecasts, kpis)
       );
       const persisted = await persistInsights(tenantRuntime.repositories, generatedInsights);
       await pruneLegacyRuleBasedInsights(tenantRuntime.repositories, persisted);
@@ -165,6 +174,13 @@ export function buildRoutes(runtime: ApiRuntime): Router {
       const query = predictionsListQuerySchema.parse(request.query);
       const tenantRuntime = runtime.forTenant(request.context.tenantId);
       const asOf = new Date().toISOString();
+      const window = analyticsWindowForLookbackDays(query.lookbackDays);
+      const engineInput = {
+        tenantId: request.context.tenantId,
+        repositories: tenantRuntime.repositories,
+        window,
+        asOf: window.end
+      };
       const result = await listCachedPredictions(
         request.context.tenantId,
         tenantRuntime.repositories,
@@ -174,9 +190,53 @@ export function buildRoutes(runtime: ApiRuntime): Router {
           ...(query.scopeKey ? { scopeKey: query.scopeKey } : {}),
           ...(query.metricKey ? { metricKey: query.metricKey } : {})
         },
-        asOf
+        asOf,
+        {
+          includeHistory: query.includeHistory,
+          engineInput
+        }
       );
       res.status(200).json({ data: result } satisfies ApiPredictionsListResponse);
+    })().catch(next);
+  });
+
+  router.get("/v1/predictions/evaluations", (req, res, next) => {
+    (async () => {
+      const request = asRequestWithContext(req);
+      const query = predictionsEvaluationsQuerySchema.parse(request.query);
+      const tenantRuntime = runtime.forTenant(request.context.tenantId);
+      const result = await listForecastEvaluations(request.context.tenantId, tenantRuntime.repositories, {
+        limit: query.limit,
+        ...(query.metricKey ? { metricKey: query.metricKey } : {}),
+        ...(query.scopeType ? { scopeType: query.scopeType } : {}),
+        ...(query.scopeKey ? { scopeKey: query.scopeKey } : {})
+      });
+      res.status(200).json({ data: result } satisfies ApiPredictionsEvaluationsResponse);
+    })().catch(next);
+  });
+
+  router.get("/v1/predictions/forward-accuracy", (req, res, next) => {
+    (async () => {
+      const request = asRequestWithContext(req);
+      const query = predictionsForwardAccuracyQuerySchema.parse(request.query);
+      const tenantRuntime = runtime.forTenant(request.context.tenantId);
+      const result = await listForwardAccuracy(request.context.tenantId, tenantRuntime.repositories, {
+        limit: query.limit
+      });
+      res.status(200).json({ data: result } satisfies ApiPredictionsForwardAccuracyResponse);
+    })().catch(next);
+  });
+
+  router.get("/v1/predictions/evaluation-trends", (req, res, next) => {
+    (async () => {
+      const request = asRequestWithContext(req);
+      const query = predictionsEvaluationTrendsQuerySchema.parse(request.query);
+      const tenantRuntime = runtime.forTenant(request.context.tenantId);
+      const result = await listEvaluationTrends(request.context.tenantId, tenantRuntime.repositories, {
+        limit: query.limit,
+        ...(query.evaluationKind ? { evaluationKind: query.evaluationKind } : {})
+      });
+      res.status(200).json({ data: result } satisfies ApiPredictionsEvaluationTrendsResponse);
     })().catch(next);
   });
 

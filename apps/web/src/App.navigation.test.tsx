@@ -35,6 +35,24 @@ describe("App navigation", () => {
             json: async () => ({ data: { vehicleCount: 0, locatedCount: 0, vehicles: [] } })
           });
         }
+        if (String(url).includes("/v1/predictions/evaluation-trends")) {
+          return Promise.resolve({
+            ok: true,
+            json: async () => ({ data: { tenantId: "tenant_test", series: [] } })
+          });
+        }
+        if (String(url).includes("/v1/predictions/forward-accuracy")) {
+          return Promise.resolve({
+            ok: true,
+            json: async () => ({ data: { tenantId: "tenant_test", entries: [] } })
+          });
+        }
+        if (String(url).includes("/v1/predictions/evaluations")) {
+          return Promise.resolve({
+            ok: true,
+            json: async () => ({ data: { tenantId: "tenant_test", evaluations: [] } })
+          });
+        }
         if (String(url).includes("/v1/predictions")) {
           return Promise.resolve({
             ok: true,

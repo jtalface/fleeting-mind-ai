@@ -1,13 +1,22 @@
-import type { DeterministicForecast, InsightGenerationContext, InsightForecastSummary } from "@fleetmind/shared/contracts/analytics.js";
+import type {
+  DeterministicForecast,
+  InsightGenerationContext,
+  InsightForecastSummary,
+  KpiSnapshot
+} from "@fleetmind/shared/contracts/analytics.js";
+
+const KPI_FORECAST_NOTE =
+  "Fleet KPI values are totals or window averages over the selected analysis period. Forecast nextP50 values are daily medians from the champion model trained on daily history; they are not required to match window KPI totals.";
 
 export function buildInsightGenerationContext(
-  forecasts?: DeterministicForecast[]
+  forecasts?: DeterministicForecast[],
+  kpis?: KpiSnapshot
 ): InsightGenerationContext | undefined {
-  if (!forecasts?.length) {
+  if (!forecasts?.length && !kpis) {
     return undefined;
   }
 
-  const summaries: InsightForecastSummary[] = forecasts.map((forecast) => {
+  const summaries: InsightForecastSummary[] = (forecasts ?? []).map((forecast) => {
     const firstPoint = forecast.predictedPoints[0];
     const summary: InsightForecastSummary = {
       metricKey: forecast.metricKey,
@@ -22,5 +31,8 @@ export function buildInsightGenerationContext(
     return summary;
   });
 
-  return { forecasts: summaries };
+  return {
+    ...(summaries.length > 0 ? { forecasts: summaries } : {}),
+    analyticsNote: KPI_FORECAST_NOTE
+  };
 }

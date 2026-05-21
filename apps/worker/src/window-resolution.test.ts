@@ -13,6 +13,16 @@ describe("resolveTenantJobWindow", () => {
     expect(result.asOf).toBe(result.end);
   });
 
+  it("expands last_7d_utc from job time", () => {
+    const ts = Date.parse("2026-05-07T12:00:00.000Z");
+    const result = resolveTenantJobWindow(
+      { windowPreset: "last_7d_utc", asOf: "ignored-for-preset" },
+      ts
+    );
+    expect(result.end).toBe("2026-05-07T12:00:00.000Z");
+    expect(result.start).toBe("2026-04-30T12:00:00.000Z");
+  });
+
   it("honors explicit windows", () => {
     const result = resolveTenantJobWindow(
       {

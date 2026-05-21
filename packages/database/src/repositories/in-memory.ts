@@ -18,7 +18,10 @@ import type {
   CreateVehicleInput,
   FleetDailyAggregate,
   FleetMetricDailyRow,
+  ForecastEvaluationKind,
   ForecastEvaluationRecord,
+  ForecastEvaluationStored,
+  ListMaturePredictionRunsQuery,
   IntegrationSyncStateRecord,
   ListLatestPredictionRunsQuery,
   PredictionRunRecord,
@@ -44,7 +47,7 @@ export class InMemoryTenantRepositories implements TenantRepositorySet {
   private readonly syncStateStore = new Map<string, IntegrationSyncStateRecord>();
   private rateCard: TenantRateCardRecord;
   private readonly martStore: FleetMetricDailyRow[] = [];
-  private readonly forecastEvalStore: ForecastEvaluationRecord[] = [];
+  private readonly forecastEvalStore: ForecastEvaluationStored[] = [];
 
   public readonly vehicles = {
     create: async (input: CreateVehicleInput): Promise<Vehicle> => {
@@ -296,22 +299,55 @@ export class InMemoryTenantRepositories implements TenantRepositorySet {
   };
 
   public readonly forecastEvaluations = {
-    create: async (record: ForecastEvaluationRecord): Promise<void> => {
-      this.forecastEvalStore.push(record);
+    upsert: async (record: ForecastEvaluationRecord): Promise<ForecastEvaluationStored> => {
+      const trainedKey = record.trainedUntil.slice(0, 19);
+      const idx = this.forecastEvalStore.findIndex(
+        (row) =>
+          row.tenantId === this.tenantId &&
+          row.scopeType === record.scopeType &&
+          row.scopeKey === record.scopeKey &&
+          row.metricKey === record.metricKey &&
+          row.horizonDays === record.horizonDays &&
+          row.evaluationKind === record.evaluationKind &&
+          row.trainedUntil.slice(0, 19) === trainedKey
+      );
+      const stored: ForecastEvaluationStored = {
+        ...record,
+        id: idx >= 0 ? (this.forecastEvalStore[idx]?.id ?? randomId("feval")) : randomId("feval"),
+        createdAt: idx >= 0 ? (this.forecastEvalStore[idx]?.createdAt ?? nowIso()) : nowIso()
+      };
+      if (idx >= 0) {
+        this.forecastEvalStore[idx] = stored;
+      } else {
+        this.forecastEvalStore.push(stored);
+      }
+      return stored;
+    },
+    listRecent: async (query = {}): Promise<ForecastEvaluationStored[]> => {
+      const limit = query.limit ?? 30;
+      return this.forecastEvalStore
+        .filter((row) => row.tenantId === this.tenantId)
+        .filter((row) => (query.metricKey ? row.metricKey === query.metricKey : true))
+        .filter((row) => (query.scopeType ? row.scopeType === query.scopeType : true))
+        .filter((row) => (query.scopeKey ? row.scopeKey === query.scopeKey : true))
+        .filter((row) => (query.evaluationKind ? row.evaluationKind === query.evaluationKind : true))
+        .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+        .slice(0, limit);
+    },
+    listTrends: async (query = {}): Promise<ForecastEvaluationStored[]> => {
+      const limit = query.limit ?? 60;
+      return this.forecastEvalStore
+        .filter((row) => row.tenantId === this.tenantId)
+        .filter((row) => (query.evaluationKind ? row.evaluationKind === query.evaluationKind : true))
+        .sort((a, b) => a.createdAt.localeCompare(b.createdAt))
+        .slice(-limit);
     }
   };
 
   private readonly predictionRunStore: PredictionRunStored[] = [];
 
   public readonly predictionRuns = {
-    replaceRun: async (record: PredictionRunRecord): Promise<void> => {
-      const idx = this.predictionRunStore.findIndex(
-        (row) =>
-          row.scopeType === record.scopeType &&
-          row.scopeKey === record.scopeKey &&
-          row.metricKey === record.metricKey &&
-          row.horizonDays === record.horizonDays
-      );
+    appendRun: async (record: PredictionRunRecord): Promise<PredictionRunStored> => {
       const stored: PredictionRunStored = {
         id: randomId("pred"),
         tenantId: record.tenantId,
@@ -329,11 +365,46 @@ export class InMemoryTenantRepositories implements TenantRepositorySet {
         createdAt: nowIso(),
         points: record.points
       };
-      if (idx >= 0) {
-        this.predictionRunStore[idx] = stored;
-      } else {
-        this.predictionRunStore.push(stored);
+      this.predictionRunStore.push(stored);
+      return stored;
+    },
+    replaceRun: async (record: PredictionRunRecord): Promise<PredictionRunStored> =>
+      this.predictionRuns.appendRun(record),
+    pruneOldRuns: async (options = {}): Promise<number> => {
+      const maxPerSeries = options.maxPerSeries ?? 24;
+      const sorted = [...this.predictionRunStore]
+        .filter((row) => row.tenantId === this.tenantId)
+        .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+      const keep = new Set<string>();
+      const counts = new Map<string, number>();
+      for (const row of sorted) {
+        const key = `${row.scopeType}:${row.scopeKey}:${row.metricKey}:${row.horizonDays}`;
+        const count = counts.get(key) ?? 0;
+        if (count < maxPerSeries) {
+          keep.add(row.id);
+          counts.set(key, count + 1);
+        }
       }
+      const before = this.predictionRunStore.length;
+      for (let i = this.predictionRunStore.length - 1; i >= 0; i -= 1) {
+        const row = this.predictionRunStore[i];
+        if (row?.tenantId === this.tenantId && !keep.has(row.id)) {
+          this.predictionRunStore.splice(i, 1);
+        }
+      }
+      return before - this.predictionRunStore.length;
+    },
+    listMature: async (query: ListMaturePredictionRunsQuery = {}): Promise<PredictionRunStored[]> => {
+      const today = new Date().toISOString().slice(0, 10);
+      return this.predictionRunStore
+        .filter((row) => row.tenantId === this.tenantId)
+        .filter((row) => (query.horizonDays ? row.horizonDays === query.horizonDays : true))
+        .filter((row) => {
+          const last = row.points[row.points.length - 1]?.date?.slice(0, 10);
+          return Boolean(last && last < today);
+        })
+        .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+        .slice(0, query.limit ?? 50);
     },
     listLatest: async (query: ListLatestPredictionRunsQuery): Promise<PredictionRunStored[]> => {
       const filtered = this.predictionRunStore

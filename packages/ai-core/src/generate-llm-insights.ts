@@ -182,7 +182,8 @@ function buildFactsPayload(snapshot: KpiSnapshot, context?: Parameters<InsightGe
       fleetMetrics: snapshot.fleetMetrics,
       vehicles,
       vehicleCountTotal: snapshot.vehicleMetrics.length,
-      forecasts: context?.forecasts ?? []
+      forecasts: context?.forecasts ?? [],
+      analyticsNote: context?.analyticsNote
     },
     null,
     2

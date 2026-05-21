@@ -55,6 +55,16 @@ describe("shared contract compatibility", () => {
     expect(parsed.success).toBe(true);
   });
 
+  it("accepts last_7d_utc window preset", () => {
+    const parsed = forecastRefreshJobPayloadSchema.safeParse({
+      tenantId: "tenant_1",
+      asOf: "2026-05-07T00:00:00.000Z",
+      horizonDays: 7,
+      windowPreset: "last_7d_utc"
+    });
+    expect(parsed.success).toBe(true);
+  });
+
   it("accepts integration sync payload with known connector", () => {
     const parsed = integrationSyncJobPayloadSchema.safeParse({
       tenantId: "tenant_1",

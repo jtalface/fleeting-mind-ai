@@ -41,8 +41,15 @@ export async function processForecastRefresh(
     horizonDays: payload.horizonDays,
     ...(payload.segmentScopes ? { segmentScopes: payload.segmentScopes } : {})
   });
-  const allForecasts = batches.flatMap((batch) => batch.forecasts);
-  await persistForecastEvaluations(repositories, allForecasts);
+  await persistForecastEvaluations(repositories, batches, input);
   await persistPredictionBatches(repositories, batches);
+
+  const { scoreForwardAccuracyForRuns } = await import("@fleetmind/analytics/forward-accuracy.js");
+  const matureRuns = (await repositories.predictionRuns?.listMature({
+    horizonDays: payload.horizonDays,
+    limit: 50
+  })) ?? [];
+  await scoreForwardAccuracyForRuns(repositories, input, matureRuns);
+
   return { skipped: false };
 }

@@ -77,6 +77,8 @@ export interface InsightForecastSummary {
 /** Optional deterministic context passed to the insight generator (LLM narrates these facts only). */
 export interface InsightGenerationContext {
   forecasts?: InsightForecastSummary[];
+  /** Clarifies KPI window totals vs daily forecast medians for the LLM. */
+  analyticsNote?: string;
 }
 
 export interface AnalyticsReport {

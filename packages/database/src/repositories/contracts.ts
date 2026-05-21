@@ -134,20 +134,41 @@ export interface FleetMetricDailyRepository {
   listAggregatedByDay(window: { start: string; end: string }): Promise<FleetDailyAggregate[]>;
 }
 
+export type ForecastEvaluationKind = "holdout" | "forward";
+
 export interface ForecastEvaluationRecord {
   tenantId: string;
+  scopeType: PredictionScopeType;
+  scopeKey: string;
   metricKey: string;
   algorithm: string;
   trainedUntil: string;
   horizonDays: number;
+  evaluationKind: ForecastEvaluationKind;
+  runId?: string;
   mae: number;
   mapePct: number;
   withinBandPct: number;
   sampleSize: number;
 }
 
+export interface ForecastEvaluationStored extends ForecastEvaluationRecord {
+  id: string;
+  createdAt: string;
+}
+
+export interface ListForecastEvaluationsQuery {
+  limit?: number;
+  metricKey?: string;
+  scopeType?: PredictionScopeType;
+  scopeKey?: string;
+  evaluationKind?: ForecastEvaluationKind;
+}
+
 export interface ForecastEvaluationRepository {
-  create(record: ForecastEvaluationRecord): Promise<void>;
+  upsert(record: ForecastEvaluationRecord): Promise<ForecastEvaluationStored>;
+  listRecent(query?: ListForecastEvaluationsQuery): Promise<ForecastEvaluationStored[]>;
+  listTrends(query?: { limit?: number; evaluationKind?: ForecastEvaluationKind }): Promise<ForecastEvaluationStored[]>;
 }
 
 export interface PredictionPointRecord {
@@ -186,9 +207,19 @@ export interface ListLatestPredictionRunsQuery {
   metricKey?: string;
 }
 
+export interface ListMaturePredictionRunsQuery {
+  horizonDays?: number;
+  limit?: number;
+}
+
 export interface PredictionRunRepository {
-  replaceRun(record: PredictionRunRecord): Promise<void>;
+  /** @deprecated Use {@link appendRun} — kept as alias for compatibility. */
+  replaceRun(record: PredictionRunRecord): Promise<PredictionRunStored>;
+  appendRun(record: PredictionRunRecord): Promise<PredictionRunStored>;
+  pruneOldRuns(options?: { maxPerSeries?: number }): Promise<number>;
   listLatest(query: ListLatestPredictionRunsQuery): Promise<PredictionRunStored[]>;
+  /** Runs whose full forecast horizon is in the past (eligible for forward scoring). */
+  listMature(query?: ListMaturePredictionRunsQuery): Promise<PredictionRunStored[]>;
 }
 
 export interface TenantRepositorySet {

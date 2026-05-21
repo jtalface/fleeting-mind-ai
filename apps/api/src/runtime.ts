@@ -131,7 +131,7 @@ export class ApiRuntime {
     const forecasts = tenantRuntime.analyticsService.runForecasts(engineInput, history, 7);
     const generated = await tenantRuntime.analyticsService.generateInsights(
       kpis,
-      buildInsightGenerationContext(forecasts)
+      buildInsightGenerationContext(forecasts, kpis)
     );
     const persisted = await persistInsights(tenantRuntime.repositories, generated);
     await pruneLegacyRuleBasedInsights(tenantRuntime.repositories, persisted);

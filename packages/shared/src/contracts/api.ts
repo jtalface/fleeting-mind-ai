@@ -1,7 +1,12 @@
 import type { AnalyticsReport } from "./analytics.js";
 import type { IntegrationSyncResult } from "./integrations.js";
 import type { CopilotResponse } from "./ai.js";
-import type { PredictionsListResult } from "./predictions.js";
+import type {
+  EvaluationTrendsResult,
+  ForecastEvaluationListResult,
+  ForwardAccuracyListResult,
+  PredictionsListResult
+} from "./predictions.js";
 import type { TelemetryIngestInput, TelemetryIngestResult } from "./telemetry.js";
 
 export interface ApiTelemetryIngestRequest extends TelemetryIngestInput {}
@@ -43,6 +48,18 @@ export interface ApiInsightsPruneLegacyResponse {
 
 export interface ApiPredictionsListResponse {
   data: PredictionsListResult;
+}
+
+export interface ApiPredictionsEvaluationsResponse {
+  data: ForecastEvaluationListResult;
+}
+
+export interface ApiPredictionsForwardAccuracyResponse {
+  data: ForwardAccuracyListResult;
+}
+
+export interface ApiPredictionsEvaluationTrendsResponse {
+  data: EvaluationTrendsResult;
 }
 
 export interface ApiPredictionsRefreshRequest {

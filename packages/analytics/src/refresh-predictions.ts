@@ -3,7 +3,9 @@ import type { TenantRepositorySet } from "../../database/src/repositories/contra
 import type { AnalyticsEngineInput, AnalyticsService } from "./contracts.js";
 import { rebuildDailyMart } from "./daily-mart.js";
 import { listCachedPredictions } from "./list-predictions.js";
+import { enrichPredictionBundles } from "./prediction-history.js";
 import { persistForecastEvaluations } from "./persist-forecast-evaluations.js";
+import { scoreForwardAccuracyForRuns } from "./forward-accuracy.js";
 import { persistPredictionBatches } from "./persist-predictions.js";
 import { DEFAULT_SEGMENT_SCOPES, type SegmentPredictionScope } from "./prediction-scopes.js";
 import { runBatchPredictions } from "./run-batch-predictions.js";
@@ -27,8 +29,18 @@ export async function refreshCachedPredictions(
     segmentScopes: options.segmentScopes ?? DEFAULT_SEGMENT_SCOPES
   });
   const allForecasts = batches.flatMap((batch) => batch.forecasts);
-  await persistForecastEvaluations(repositories, allForecasts);
+  await persistForecastEvaluations(repositories, batches, input);
   await persistPredictionBatches(repositories, batches);
 
-  return listCachedPredictions(input.tenantId, repositories, { horizonDays: options.horizonDays }, generatedAt);
+  const matureRuns = (await repositories.predictionRuns?.listMature({ horizonDays: options.horizonDays, limit: 50 })) ?? [];
+  await scoreForwardAccuracyForRuns(repositories, input, matureRuns);
+
+  const result = await listCachedPredictions(
+    input.tenantId,
+    repositories,
+    { horizonDays: options.horizonDays },
+    generatedAt
+  );
+  result.bundles = await enrichPredictionBundles(input, result.bundles);
+  return result;
 }

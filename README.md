@@ -46,7 +46,25 @@ curl -X POST http://localhost:4000/v1/predictions/refresh \
   -d '{"horizonDays":7,"lookbackDays":7}'
 ```
 
-Then open **Predictions** in the web app or `GET /v1/predictions`.
+Then open **Predictions** in the web app or `GET /v1/predictions` (includes daily **actuals** overlay and evaluation history).
+
+**Automatic refresh** (worker + Redis):
+
+```env
+WORKER_SCHEDULER_ENABLED=true
+WORKER_SCHEDULED_TENANT_IDS=tenant_demo
+WORKER_SCHEDULED_LOOKBACK_DAYS=7
+WORKER_SCHEDULED_FORECAST_HORIZON_DAYS=7
+```
+
+Pipeline order every 6h (default): Flespi incremental sync → batch analytics → forecast/predictions cache (7d UTC window, 7d horizon).
+
+**Phase 2.1 — trust & data quality**
+
+- Prediction runs are **appended** (history kept) and forward accuracy is scored when the forecast horizon has passed.
+- `GET /v1/predictions/forward-accuracy` — realized vs P50 for mature runs.
+- `GET /v1/predictions/evaluation-trends` — MAPE over time (holdout + forward).
+- Weekly **deep backfill** (optional): `WORKER_CRON_DEEP_BACKFILL=0 3 * * 0` with `WORKER_DEEP_BACKFILL_LOOKBACK_DAYS=30`.
 
 ### Prune pre-LLM insights (optional)
 
