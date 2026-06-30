@@ -9,15 +9,15 @@ Monorepo foundation for a production-grade SaaS platform that ingests telemetry,
 3. `pnpm dev:setup` — Docker (Postgres + Redis), migrate, seed
 4. `pnpm dev:all` — API + worker + web on localhost
 
-| Service | URL |
-|---------|-----|
-| Web | http://localhost:5173 |
-| API | http://localhost:4000/health |
-| Chat | http://localhost:5173/chat |
-| Insights | http://localhost:5173/insights |
-| Predictions | http://localhost:5173/predictions |
-| Finance (rate card & contracts) | http://localhost:5173/settings |
-| Map | http://localhost:5173/map |
+| Service                         | URL                               |
+| ------------------------------- | --------------------------------- |
+| Web                             | http://localhost:5173             |
+| API                             | http://localhost:4000/health      |
+| Chat                            | http://localhost:5173/chat        |
+| Insights                        | http://localhost:5173/insights    |
+| Predictions                     | http://localhost:5173/predictions |
+| Finance (rate card & contracts) | http://localhost:5173/settings    |
+| Map                             | http://localhost:5173/map         |
 
 **Migrations** (from repo root, uses `.env`):
 
