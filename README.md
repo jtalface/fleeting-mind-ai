@@ -9,15 +9,15 @@ Monorepo foundation for a production-grade SaaS platform that ingests telemetry,
 3. `pnpm dev:setup` — Docker (Postgres + Redis), migrate, seed
 4. `pnpm dev:all` — API + worker + web on localhost
 
-| Service | URL |
-|---------|-----|
-| Web | http://localhost:5173 |
-| API | http://localhost:4000/health |
-| Chat | http://localhost:5173/chat |
-| Insights | http://localhost:5173/insights |
-| Predictions | http://localhost:5173/predictions |
-| Finance (rate card & contracts) | http://localhost:5173/settings |
-| Map | http://localhost:5173/map |
+| Service                         | URL                               |
+| ------------------------------- | --------------------------------- |
+| Web                             | http://localhost:5173             |
+| API                             | http://localhost:4000/health      |
+| Chat                            | http://localhost:5173/chat        |
+| Insights                        | http://localhost:5173/insights    |
+| Predictions                     | http://localhost:5173/predictions |
+| Finance (rate card & contracts) | http://localhost:5173/settings    |
+| Map                             | http://localhost:5173/map         |
 
 **Migrations** (from repo root, uses `.env`):
 
@@ -114,3 +114,4 @@ curl -X POST http://localhost:4000/v1/insights/prune-legacy \
 - `docs/architecture.md`: architecture blueprint, contracts, boundaries, and dependency graph.
 - `docs/agent-prompts.md`: isolated implementation prompts for specialist agents A-H.
 - `docs/forecasting-roadmap.md`: Phase 4a (data), 4b (features/ML), 4c (scenarios) backlog after Phase 3; includes what **mart** means in this repo.
+- `AUTOMATION.md`: log of automated changes applied by the AI first mate.

@@ -18,7 +18,6 @@ import type {
   CreateVehicleInput,
   FleetDailyAggregate,
   FleetMetricDailyRow,
-  ForecastEvaluationKind,
   ForecastEvaluationRecord,
   ForecastEvaluationStored,
   ListMaturePredictionRunsQuery,
