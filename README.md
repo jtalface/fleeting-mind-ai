@@ -114,3 +114,4 @@ curl -X POST http://localhost:4000/v1/insights/prune-legacy \
 - `docs/architecture.md`: architecture blueprint, contracts, boundaries, and dependency graph.
 - `docs/agent-prompts.md`: isolated implementation prompts for specialist agents A-H.
 - `docs/forecasting-roadmap.md`: Phase 4a (data), 4b (features/ML), 4c (scenarios) backlog after Phase 3; includes what **mart** means in this repo.
+- `AUTOMATION.md`: log of automated changes applied by the AI first mate.
