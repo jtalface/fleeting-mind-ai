@@ -2,7 +2,7 @@ import type { FleetMetricDailyRow, TenantRateCardRecord } from "../../database/s
 import type { FuelReading, Trip, Vehicle } from "@fleetmind/shared/contracts/domain.js";
 import type { AnalyticsEngineInput } from "./contracts.js";
 import { resolveTenantRateCard } from "./rate-card.js";
-import { allocateTripToDailyBuckets, emptyDailyAccumulator } from "./trip-daily-rollup.js";
+import { allocateTripToDailyBuckets, type emptyDailyAccumulator } from "./trip-daily-rollup.js";
 
 const dayKey = (iso: string): string => iso.slice(0, 10);
 

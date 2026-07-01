@@ -1,5 +1,4 @@
 import type { Trip, Vehicle } from "@fleetmind/shared/contracts/domain.js";
-import type { TenantRepositorySet } from "@fleetmind/database/repositories/contracts.js";
 import type { AnalyticsEngineInput } from "./contracts.js";
 
 const safeDivide = (numerator: number, denominator: number): number => (denominator === 0 ? 0 : numerator / denominator);

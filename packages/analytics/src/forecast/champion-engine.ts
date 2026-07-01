@@ -1,4 +1,4 @@
-import type { DeterministicForecast, ForecastAlgorithm } from "@fleetmind/shared/contracts/analytics.js";
+import type { DeterministicForecast } from "@fleetmind/shared/contracts/analytics.js";
 import type { AnalyticsDataPoint, ForecastEngine, ForecastQualityMetrics } from "../contracts.js";
 import {
   backtestCandidates,
