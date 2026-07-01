@@ -13,7 +13,6 @@ import { buildDailyHistoryFromRepositories } from "../../../packages/analytics/s
 import type { Insight } from "../../../packages/shared/src/contracts/domain.js";
 import { createInMemoryTenantRepositories } from "../../../packages/database/src/repositories/in-memory.js";
 import { createPrismaTenantRepositories } from "../../../packages/database/src/repositories/prisma.js";
-import type { PrismaDbClient } from "../../../packages/database/src/repositories/prisma.js";
 import type { TenantRepositorySet } from "../../../packages/database/src/repositories/contracts.js";
 import {
   isFleetMetricsApiConfigured,

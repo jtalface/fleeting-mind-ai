@@ -2,7 +2,7 @@ import express from "express";
 import { devCorsMiddleware } from "./cors.js";
 import { errorMiddleware, contextMiddleware, notFoundMiddleware } from "./middleware.js";
 import { buildRoutes } from "./routes.js";
-import { ApiRuntime } from "./runtime.js";
+import type { ApiRuntime } from "./runtime.js";
 
 export interface CreateAppOptions {
   runtime?: ApiRuntime;
