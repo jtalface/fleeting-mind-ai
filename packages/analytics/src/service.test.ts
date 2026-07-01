@@ -1,7 +1,6 @@
 import { createInMemoryTenantRepositories } from "../../database/src/repositories/in-memory.js";
 import { describe, expect, it } from "vitest";
 import { benchmarkHistoryFixture } from "./fixtures.js";
-import { ChampionForecastEngine } from "./forecast/champion-engine.js";
 import { DeterministicForecastEngine } from "./forecast.js";
 import { DefaultAnalyticsService } from "./service.js";
 

@@ -1,6 +1,7 @@
 import type { Trip } from "@fleetmind/shared/contracts/domain.js";
 import { describe, expect, it } from "vitest";
-import { allocateTripToDailyBuckets, buildDailyAggregatesFromTrips, emptyDailyAccumulator } from "./trip-daily-rollup.js";
+import type { emptyDailyAccumulator } from "./trip-daily-rollup.js";
+import { allocateTripToDailyBuckets, buildDailyAggregatesFromTrips } from "./trip-daily-rollup.js";
 
 const rateCard = { tenantId: "t1", revenuePerKm: 2, operatingCostPerKm: 0.5, currency: "USD" };
 

@@ -1,9 +1,6 @@
 import type { TelemetryPoint } from "@fleetmind/shared/contracts/domain.js";
 import type { TenantRateCardRecord } from "../../database/src/repositories/contracts.js";
-import {
-  type DailyMetricAccumulator,
-  emptyDailyAccumulator
-} from "./trip-daily-rollup.js";
+import type { DailyMetricAccumulator } from "./trip-daily-rollup.js";
 
 const EARTH_RADIUS_KM = 6371;
 const toRadians = (value: number): number => (value * Math.PI) / 180;

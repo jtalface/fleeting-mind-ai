@@ -5,17 +5,6 @@ import type { Insight, MetricValue } from "@fleetmind/shared/contracts/domain.js
 import { z } from "zod";
 import { isOpenAiConfigured, type OpenAiResponderOptions, openAiTemperature } from "./openai-responder.js";
 
-const metricKeySchema = z.enum([
-  "revenue",
-  "cost",
-  "profit",
-  "profit_margin_pct",
-  "fuel_cost_per_km",
-  "idle_ratio_pct",
-  "utilization_pct",
-  "on_time_pct"
-]);
-
 /** gpt-5* models often omit optional-looking fields; coerce with defaults after parse. */
 const llmInsightDraftLooseSchema = z.object({
   entityType: z.enum(["fleet", "vehicle"]),
