@@ -1,3 +1,5 @@
+José Alface
+
 # Fleet Mind AI
 
 Monorepo foundation for a production-grade SaaS platform that ingests telemetry, computes deterministic fleet analytics, and serves grounded AI copilots.
