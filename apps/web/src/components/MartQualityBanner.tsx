@@ -2,8 +2,8 @@ import type { MartQualityReport } from "@fleetmind/shared";
 
 export interface MartQualityBannerProps {
   report: MartQualityReport | undefined;
-  loading?: boolean;
-  error?: string;
+  loading?: boolean | undefined;
+  error?: string | undefined;
 }
 
 export function MartQualityBanner({ report, loading, error }: MartQualityBannerProps): JSX.Element | null {

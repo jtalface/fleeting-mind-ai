@@ -276,7 +276,7 @@ export function PredictionsPage({ cfg }: PredictionsPageProps): JSX.Element {
         </Card>
       ) : null}
 
-      {(forwardResult?.entries?.length ?? 0) > 0 ? (
+      {forwardResult && forwardResult.entries.length > 0 ? (
         <section style={{ marginBottom: "var(--fm-space-5)" }}>
           <h2 style={{ fontSize: "1rem", margin: "0 0 var(--fm-space-3)", color: "var(--fm-color-text-muted)" }}>
             Forward accuracy (forecast vs realized)
@@ -312,7 +312,7 @@ export function PredictionsPage({ cfg }: PredictionsPageProps): JSX.Element {
         </section>
       ) : null}
 
-      {(evalResult?.evaluations?.length ?? 0) > 0 ? (
+      {evalResult && evalResult.evaluations.length > 0 ? (
         <section style={{ marginBottom: "var(--fm-space-5)" }}>
           <h2 style={{ fontSize: "1rem", margin: "0 0 var(--fm-space-3)", color: "var(--fm-color-text-muted)" }}>
             Model evaluation (holdout backtest)
@@ -352,7 +352,7 @@ export function PredictionsPage({ cfg }: PredictionsPageProps): JSX.Element {
         </section>
       ) : null}
 
-      {(trendsResult?.series?.length ?? 0) > 0 ? (
+      {trendsResult && trendsResult.series.length > 0 ? (
         <section style={{ marginBottom: "var(--fm-space-5)" }}>
           <h2 style={{ fontSize: "1rem", margin: "0 0 var(--fm-space-3)", color: "var(--fm-color-text-muted)" }}>
             MAPE trends

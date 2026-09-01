@@ -22,11 +22,16 @@ export const vehicleMetricsSyncOptionsSchema = z.object({
 
 export type VehicleMetricsSyncOptions = z.infer<typeof vehicleMetricsSyncOptionsSchema>;
 
-const hasExplicitSelection = (options: Partial<VehicleMetricsSyncOptions>): boolean =>
+/** Overrides may carry explicit `undefined` values (e.g. from optional job-payload fields). */
+export type VehicleMetricsSyncOverrides = {
+  [K in keyof VehicleMetricsSyncOptions]?: VehicleMetricsSyncOptions[K] | undefined;
+};
+
+const hasExplicitSelection = (options: VehicleMetricsSyncOverrides): boolean =>
   (options.deviceExternalIds?.length ?? 0) > 0 || Boolean(options.deviceNameIncludes?.trim());
 
 export function resolveSyncOptions(
-  overrides: Partial<VehicleMetricsSyncOptions> = {},
+  overrides: VehicleMetricsSyncOverrides = {},
   env: NodeJS.ProcessEnv = process.env
 ): VehicleMetricsSyncOptions {
   const defaults = vehicleMetricsSyncOptionsSchema.parse({

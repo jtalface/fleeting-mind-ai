@@ -2,9 +2,9 @@ import type { ExternalVehicle } from "@fleetmind/shared/contracts/integrations.j
 
 export interface VehicleSelectionFilter {
   /** Flespi device ids (e.g. "6546042"). When set, only these devices are synced. */
-  deviceExternalIds?: string[];
+  deviceExternalIds?: string[] | undefined;
   /** Case-insensitive substring match on name, VIN, or external id (e.g. "Sweeper"). */
-  deviceNameIncludes?: string;
+  deviceNameIncludes?: string | undefined;
 }
 
 export function filterExternalVehicles(

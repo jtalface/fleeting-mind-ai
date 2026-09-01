@@ -18,8 +18,10 @@ import type {
   CreateVehicleInput,
   FleetDailyAggregate,
   FleetMetricDailyRow,
+  ForecastEvaluationKind,
   ForecastEvaluationRecord,
   ForecastEvaluationStored,
+  ListForecastEvaluationsQuery,
   ListMaturePredictionRunsQuery,
   IntegrationSyncStateRecord,
   ListLatestPredictionRunsQuery,
@@ -376,7 +378,7 @@ export class InMemoryTenantRepositories implements TenantRepositorySet {
       }
       return stored;
     },
-    listRecent: async (query = {}): Promise<ForecastEvaluationStored[]> => {
+    listRecent: async (query: ListForecastEvaluationsQuery = {}): Promise<ForecastEvaluationStored[]> => {
       const limit = query.limit ?? 30;
       return this.forecastEvalStore
         .filter((row) => row.tenantId === this.tenantId)
@@ -387,7 +389,9 @@ export class InMemoryTenantRepositories implements TenantRepositorySet {
         .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
         .slice(0, limit);
     },
-    listTrends: async (query = {}): Promise<ForecastEvaluationStored[]> => {
+    listTrends: async (
+      query: { limit?: number; evaluationKind?: ForecastEvaluationKind } = {}
+    ): Promise<ForecastEvaluationStored[]> => {
       const limit = query.limit ?? 60;
       return this.forecastEvalStore
         .filter((row) => row.tenantId === this.tenantId)
@@ -423,7 +427,7 @@ export class InMemoryTenantRepositories implements TenantRepositorySet {
     },
     replaceRun: async (record: PredictionRunRecord): Promise<PredictionRunStored> =>
       this.predictionRuns.appendRun(record),
-    pruneOldRuns: async (options = {}): Promise<number> => {
+    pruneOldRuns: async (options: { maxPerSeries?: number } = {}): Promise<number> => {
       const maxPerSeries = options.maxPerSeries ?? 24;
       const sorted = [...this.predictionRunStore]
         .filter((row) => row.tenantId === this.tenantId)

@@ -24,13 +24,13 @@ export interface CreateConversationMessageInput extends Omit<ConversationMessage
 export interface UpsertVehicleFromExternalInput {
   externalId: string;
   vin: string;
-  plateNumber?: string;
+  plateNumber?: string | undefined;
   class: Vehicle["class"];
-  make?: string;
-  model?: string;
-  year?: number;
-  odometerKm?: number;
-  active?: boolean;
+  make?: string | undefined;
+  model?: string | undefined;
+  year?: number | undefined;
+  odometerKm?: number | undefined;
+  active?: boolean | undefined;
 }
 
 export interface VehicleRepository {
@@ -114,11 +114,11 @@ export interface BillingContractRecord {
 
 export interface CreateBillingContractRecordInput {
   name: string;
-  externalJobId?: string;
+  externalJobId?: string | undefined;
   revenuePerKm: number;
   operatingCostPerKm: number;
-  currency?: string;
-  notes?: string;
+  currency?: string | undefined;
+  notes?: string | undefined;
 }
 
 export interface BillingContractRepository {
@@ -131,9 +131,9 @@ export interface BillingContractRepository {
 export interface UpsertTenantRateCardInput {
   revenuePerKm: number;
   operatingCostPerKm: number;
-  currency?: string;
+  currency?: string | undefined;
   /** When set from an activated billing contract. Pass `null` to clear on manual override. */
-  sourceContractId?: string | null;
+  sourceContractId?: string | null | undefined;
 }
 
 export interface RateCardRepository {

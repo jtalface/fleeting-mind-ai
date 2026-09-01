@@ -17,19 +17,19 @@ import {
   backfillFromUnix,
   resolveSyncOptions,
   sleep,
-  type VehicleMetricsSyncOptions
+  type VehicleMetricsSyncOverrides
 } from "./sync-options.js";
 import { applyDeviceCap, filterExternalVehicles } from "./vehicle-filter.js";
 
 export interface VehicleMetricsSyncInput {
   tenantId: string;
   connector: string;
-  cursor?: string;
+  cursor?: string | undefined;
   repositories: TenantRepositorySet;
   ingestService: TelemetryIngestService;
   apiClient: FleetMetricsApiClient;
-  options?: Partial<VehicleMetricsSyncOptions>;
-  onProgress?: (event: SyncProgressEvent) => void;
+  options?: VehicleMetricsSyncOverrides | undefined;
+  onProgress?: ((event: SyncProgressEvent) => void) | undefined;
 }
 
 export interface SyncProgressEvent {
@@ -51,7 +51,8 @@ export class VehicleMetricsSyncService {
       tripsCreated: 0,
       devicesProcessed: 0,
       devicesSkipped: 0,
-      mode: options.mode
+      mode: options.mode,
+      durationMs: 0
     };
 
     const externalVehicles = await input.apiClient.listVehicles();

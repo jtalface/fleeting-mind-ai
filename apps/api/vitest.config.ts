@@ -6,28 +6,22 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..")
 
 const alias = (subpath: string): string => path.join(root, subpath);
 
+// Workspace packages ship `dist/` in production but are never built during tests,
+// so resolve every `@fleetmind/*` import (bare or subpath) straight to its TS source.
+const workspacePackages = "shared|database|telemetry|analytics|ai-core|integrations|ui";
+
 export default defineConfig({
   resolve: {
-    alias: {
-      "@fleetmind/database/client.js": alias("packages/database/src/client.ts"),
-      "@fleetmind/database/repositories/in-memory.js": alias("packages/database/src/repositories/in-memory.ts"),
-      "@fleetmind/database/repositories/prisma.js": alias("packages/database/src/repositories/prisma.ts"),
-      "@fleetmind/database/repositories/contracts.js": alias("packages/database/src/repositories/contracts.ts"),
-      "@fleetmind/shared/contracts/integrations.js": alias("packages/shared/src/contracts/integrations.ts"),
-      "@fleetmind/shared/contracts/jobs.js": alias("packages/shared/src/contracts/jobs.ts"),
-      "@fleetmind/shared/contracts/telemetry.js": alias("packages/shared/src/contracts/telemetry.ts"),
-      "@fleetmind/shared/contracts/domain.js": alias("packages/shared/src/contracts/domain.ts"),
-      "@fleetmind/shared/contracts/ai.js": alias("packages/shared/src/contracts/ai.ts"),
-      "@fleetmind/shared/contracts/analytics.js": alias("packages/shared/src/contracts/analytics.ts"),
-      "@fleetmind/telemetry/ingest-service.js": alias("packages/telemetry/src/ingest-service.ts"),
-      "@fleetmind/telemetry/timeline-service.js": alias("packages/telemetry/src/timeline-service.ts"),
-      "@fleetmind/integrations/": alias("packages/integrations/src/"),
-      "@fleetmind/integrations": alias("packages/integrations/src/index.ts"),
-      "@fleetmind/analytics/service.js": alias("packages/analytics/src/service.ts"),
-      "@fleetmind/analytics/history.js": alias("packages/analytics/src/history.ts"),
-      "@fleetmind/analytics/persist-insights.js": alias("packages/analytics/src/persist-insights.ts"),
-      "@fleetmind/analytics/contracts.js": alias("packages/analytics/src/contracts.ts")
-    }
+    alias: [
+      {
+        find: new RegExp(`^@fleetmind/(${workspacePackages})/(.*)\\.js$`),
+        replacement: alias("packages/$1/src/$2.ts")
+      },
+      {
+        find: new RegExp(`^@fleetmind/(${workspacePackages})$`),
+        replacement: alias("packages/$1/src/index.ts")
+      }
+    ]
   },
   test: {
     environment: "node",

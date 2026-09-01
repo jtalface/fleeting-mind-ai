@@ -88,7 +88,7 @@ export async function scoreForwardAccuracyForRuns(
       scopeType: run.scopeType,
       scopeKey: run.scopeKey,
       metricKey: run.metricKey,
-      algorithm: run.algorithm as ForecastEvaluationEntry["algorithm"],
+      algorithm: run.algorithm,
       trainedUntil: run.trainedUntil,
       horizonDays: run.horizonDays,
       evaluationKind: "forward",
