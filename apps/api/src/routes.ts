@@ -317,7 +317,7 @@ export function buildRoutes(runtime: ApiRuntime): Router {
       }
       const card = await tenantRuntime.repositories.rateCards.get();
       res.status(200).json({
-        data: { tenantId: request.context.tenantId, ...card }
+        data: { ...card, tenantId: request.context.tenantId }
       } satisfies ApiTenantRateCardResponse);
     })().catch(next);
   });
@@ -335,7 +335,7 @@ export function buildRoutes(runtime: ApiRuntime): Router {
         sourceContractId: null
       });
       res.status(200).json({
-        data: { tenantId: request.context.tenantId, ...card }
+        data: { ...card, tenantId: request.context.tenantId }
       } satisfies ApiTenantRateCardResponse);
     })().catch(next);
   });
@@ -390,7 +390,7 @@ export function buildRoutes(runtime: ApiRuntime): Router {
       res.status(200).json({
         data: {
           contract: contract as TenantBillingContract,
-          rateCard: { tenantId: request.context.tenantId, ...rateCard }
+          rateCard: { ...rateCard, tenantId: request.context.tenantId }
         }
       } satisfies ApiBillingContractActivateResponse);
     })().catch(next);

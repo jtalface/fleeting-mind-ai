@@ -28,13 +28,13 @@ export interface TelemetryPoint {
   timestamp: TimestampIso;
   latitude: number;
   longitude: number;
-  speedKph?: number;
-  headingDegrees?: number;
-  engineRpm?: number;
-  ignitionOn?: boolean;
-  fuelLevelPct?: number;
-  odometerKm?: number;
-  engineHours?: number;
+  speedKph?: number | undefined;
+  headingDegrees?: number | undefined;
+  engineRpm?: number | undefined;
+  ignitionOn?: boolean | undefined;
+  fuelLevelPct?: number | undefined;
+  odometerKm?: number | undefined;
+  engineHours?: number | undefined;
   source: "device" | "partner_api" | "manual";
 }
 

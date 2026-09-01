@@ -18,6 +18,11 @@
     "format": "prettier --write .",
     "format:check": "prettier --check ."
   },
+  "pnpm": {
+    "overrides": {
+      "ioredis": "5.11.1"
+    }
+  },
   "devDependencies": {
     "concurrently": "^9.1.0",
     "dotenv-cli": "^7.4.2",

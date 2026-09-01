@@ -15,9 +15,9 @@ import {
 export interface ForecastBandChartProps {
   title: string;
   points: ForecastPoint[];
-  historyActuals?: PredictionHistoryPoint[];
-  trainedUntil?: string;
-  height?: number;
+  historyActuals?: PredictionHistoryPoint[] | undefined;
+  trainedUntil?: string | undefined;
+  height?: number | undefined;
 }
 
 export function ForecastBandChart({

@@ -31,8 +31,18 @@ import type {
   UpsertTenantRateCardInput,
   UpsertVehicleFromExternalInput
 } from "./contracts.js";
-import { Prisma } from "@prisma/client";
 import { normalizeTelemetryTimestamp } from "../telemetry-timestamp.js";
+
+/**
+ * Prisma raises a {@link https://www.prisma.io/docs/orm/reference/error-reference#p2002 P2002}
+ * known-request error when a unique constraint is violated. We match structurally rather than
+ * via `Prisma.PrismaClientKnownRequestError` so this module stays independent of the generated client.
+ */
+const isUniqueConstraintError = (error: unknown): boolean =>
+  typeof error === "object" &&
+  error !== null &&
+  "code" in error &&
+  (error as { code?: unknown }).code === "P2002";
 
 type VehicleRow = Omit<Vehicle, "createdAt" | "updatedAt"> & { createdAt: Date; updatedAt: Date };
 type TelemetryPointRow = Omit<TelemetryPoint, "timestamp"> & { id: string; timestamp: Date };
@@ -123,6 +133,12 @@ type InsightDelegate = Delegate<
     data: Omit<InsightRow, "id" | "createdAt" | "metrics"> & { metrics: { createMany: { data: InsightMetricRow[] } } };
     include: { metrics: true };
   }): Promise<InsightRow>;
+  deleteMany(args: {
+    where: {
+      tenantId: string;
+      OR?: Array<{ id?: { startsWith?: string; in?: string[] } }>;
+    };
+  }): Promise<{ count: number }>;
 };
 
 type ConversationDelegate = {
@@ -209,7 +225,12 @@ type TenantBillingContractDelegate = {
     orderBy?: { createdAt: "desc" };
   }): Promise<TenantBillingContractRow[]>;
   findFirst(args: { where: { tenantId: string; id?: string; isActive?: boolean } }): Promise<TenantBillingContractRow | null>;
-  create(args: { data: Omit<TenantBillingContractRow, "id" | "createdAt" | "updatedAt"> & { id?: string } }): Promise<TenantBillingContractRow>;
+  create(args: {
+    data: Omit<TenantBillingContractRow, "id" | "createdAt" | "updatedAt" | "effectiveFrom"> & {
+      id?: string;
+      effectiveFrom?: Date;
+    };
+  }): Promise<TenantBillingContractRow>;
   updateMany(args: {
     where: { tenantId: string; isActive?: boolean };
     data: Partial<Pick<TenantBillingContractRow, "isActive" | "effectiveFrom">>;
@@ -232,20 +253,49 @@ type FleetMetricDailyDelegate = {
   }): Promise<FleetMetricDailyRowDb>;
 };
 
+type ForecastEvaluationWriteData = {
+  tenantId: string;
+  scopeType: string;
+  scopeKey: string;
+  metricKey: string;
+  algorithm: string;
+  trainedUntil: Date;
+  horizonDays: number;
+  evaluationKind: string;
+  runId: string | null;
+  mae: number;
+  maePct: number;
+  withinBandPct: number;
+  sampleSize: number;
+};
+
 type ForecastEvaluationDelegate = {
-  create(args: {
-    data: {
-      tenantId: string;
-      metricKey: string;
-      algorithm: string;
-      trainedUntil: Date;
-      horizonDays: number;
-      mae: number;
-      maePct: number;
-      withinBandPct: number;
-      sampleSize: number;
+  upsert(args: {
+    where: {
+      tenantId_scopeType_scopeKey_metricKey_horizonDays_evaluationKind_trainedUntil: {
+        tenantId: string;
+        scopeType: string;
+        scopeKey: string;
+        metricKey: string;
+        horizonDays: number;
+        evaluationKind: string;
+        trainedUntil: Date;
+      };
     };
-  }): Promise<unknown>;
+    create: ForecastEvaluationWriteData;
+    update: Partial<Omit<ForecastEvaluationWriteData, "tenantId">>;
+  }): Promise<ForecastEvaluationRowDb>;
+  findMany(args: {
+    where: {
+      tenantId: string;
+      metricKey?: string;
+      scopeType?: string;
+      scopeKey?: string;
+      evaluationKind?: string;
+    };
+    orderBy?: { createdAt: "desc" | "asc" };
+    take?: number;
+  }): Promise<ForecastEvaluationRowDb[]>;
 };
 
 type PredictionPointRowDb = {
@@ -258,28 +308,11 @@ type PredictionPointRowDb = {
   p90: number;
 };
 
-type PredictionRunRowDb = {
-  id: string;
-  tenantId: string;
-  scopeType: "fleet" | "segment";
-  scopeKey: string;
-  nameIncludes: string | null;
-  metricKey: string;
-  algorithm: string;
-  trainedUntil: Date;
-  horizonDays: number;
-  sampleSize: number;
-  backtestMapePct: number | null;
-  championSelected: boolean;
-  explanationJson: string;
-  createdAt: Date;
-  points: PredictionPointRowDb[];
-};
-
 type PredictionRunDelegate = {
   deleteMany(args: {
     where: {
-      tenantId: string;
+      tenantId?: string;
+      id?: { in: string[] };
       scopeType?: "fleet" | "segment" | "vehicle";
       scopeKey?: string;
       metricKey?: string;
@@ -310,17 +343,20 @@ type PredictionRunDelegate = {
         }>;
       };
     };
+    include?: { points: { orderBy: { date: "asc" } } };
   }): Promise<PredictionRunRowDb>;
   findMany(args: {
     where: {
       tenantId: string;
-      horizonDays: number;
+      horizonDays?: number;
       scopeType?: "fleet" | "segment" | "vehicle";
       scopeKey?: string;
       metricKey?: string;
     };
-    include: { points: { orderBy: { date: "asc" } } };
-    orderBy: { createdAt: "desc" };
+    select?: Record<string, boolean>;
+    include?: { points: { orderBy: { date: "asc" } } };
+    orderBy?: { createdAt: "desc" | "asc" };
+    take?: number;
   }): Promise<PredictionRunRowDb[]>;
 };
 
@@ -585,10 +621,7 @@ export const createPrismaTenantRepositories = (tenantId: string, db: PrismaDbCli
         });
         return mapTelemetry(row);
       } catch (error) {
-        if (
-          error instanceof Prisma.PrismaClientKnownRequestError &&
-          error.code === "P2002"
-        ) {
+        if (isUniqueConstraintError(error)) {
           const existing = await db.telemetryPoint.findUnique({
             where: {
               tenantId_vehicleId_timestamp: { tenantId, vehicleId: input.vehicleId, timestamp }

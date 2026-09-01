@@ -162,8 +162,8 @@ export class ApiRuntime {
   }
 
   public async previewIntegrationDevices(filter?: {
-    deviceExternalIds?: string[];
-    deviceNameIncludes?: string;
+    deviceExternalIds?: string[] | undefined;
+    deviceNameIncludes?: string | undefined;
   }): Promise<{
     totalDevices: number;
     matchedDevices: number;
@@ -258,7 +258,7 @@ export class ApiRuntime {
           ok: true,
           observedAt: request.context.now,
           citations: ["fleet:empty"],
-          data: { status: "offline" as const, vehicleCount: 0, vehicles: [] }
+          data: { vehicleCount: 0, movingCount: 0, idleCount: 0, vehicles: [] }
         };
       }
 

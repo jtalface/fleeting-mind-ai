@@ -1,10 +1,11 @@
 import { describe, expect, it, vi } from "vitest";
+import type { ForecastEvaluationRecord } from "../../database/src/repositories/contracts.js";
 import { persistForecastEvaluations } from "./persist-forecast-evaluations.js";
 import type { ScopedForecastBatch } from "./run-batch-predictions.js";
 
 describe("persistForecastEvaluations", () => {
   it("persists holdout quality metrics with scope", async () => {
-    const upsert = vi.fn(async (record: { evaluationKind: string; scopeType: string }) => ({
+    const upsert = vi.fn(async (record: ForecastEvaluationRecord) => ({
       id: "feval_1",
       createdAt: "2026-05-21T00:00:00.000Z",
       ...record,
@@ -58,8 +59,9 @@ describe("persistForecastEvaluations", () => {
     await persistForecastEvaluations(repositories as never, batches);
     expect(upsert).toHaveBeenCalled();
     const record = upsert.mock.calls[0]?.[0];
-    expect(record.scopeType).toBe("fleet");
-    expect(record.evaluationKind).toBe("holdout");
-    expect(record.mapePct).toBeGreaterThanOrEqual(0);
+    expect(record).toBeDefined();
+    expect(record?.scopeType).toBe("fleet");
+    expect(record?.evaluationKind).toBe("holdout");
+    expect(record?.mapePct).toBeGreaterThanOrEqual(0);
   });
 });
